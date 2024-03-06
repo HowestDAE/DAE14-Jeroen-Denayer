@@ -4,10 +4,10 @@
 <br />
 <div align="center">
 
-  <h1 align="center">NAME OF CHOSEN GAME</h1>
+  <h1 align="center">Celeste</h1>
 
   <p align="center">
-    Short description of the game.
+    Help Madeline survive her inner demons on her journey to the top of Celeste Mountain, in this super-tight platformer from the creators of TowerFall. Brave hundreds of hand-crafted challenges, uncover devious secrets, and piece together the mystery of the mountain.
     <br />
     <strong>Original game : </strong>
     <a href="https://www.google.be/"><strong>General info »</strong></a>
@@ -144,7 +144,7 @@ Explain where you applied inheritance (mandatory).
 <!-- CONTACT -->
 ## Contact
 
-Your Name - email@student.howest.be
+Your Name - jeroen.denayer@student.howest.be
 
 Project Link: [https://github.com/your_username/repo_name](https://github.com/your_username/repo_name)
 
