@@ -10,15 +10,15 @@
     Help Madeline survive her inner demons on her journey to the top of Celeste Mountain, in this super-tight platformer from the creators of TowerFall. Brave hundreds of hand-crafted challenges, uncover devious secrets, and piece together the mystery of the mountain.
     <br />
     <strong>Original game : </strong>
-    <a href="https://www.google.be/"><strong>General info »</strong></a>
+    <a href="https://en.wikipedia.org/wiki/Celeste_(video_game)"><strong>General info »</strong></a>
     ·
-    <a href="https://www.google.be/"><strong>Youtube video »<strong></a>
+    <a href="https://www.youtube.com/watch?v=6GlTmtXA7WA"><strong>Youtube video »<strong></a>
     <br />
     <br />
   </p>
 </div>
 
-
+![Title Screen](TitleScreen.png)
 
 <!-- TABLE OF CONTENTS -->
 <details>
@@ -46,38 +46,92 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-TODO: add screenshot 
-
-Here's why:
-TODO: describe why you chose this game 
-* reason 1
-* reason .. 
+Why I chose Celeste:
+- 1 of my all-time favorite platformers
+- Breathtaking pixel artstyle
+- Beautiful synth music
+- Precise and coordinated fast-paced gameplay
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-
 ## My version
 
-This section gives a clear and detailed overview of which parts of the original game I planned to make.
+This section gives an overview on which parts of the original game I plan to make.
+
+I will re-create the Badeline boss fight from Chapter 6 in as much detail as possible.
+<div align="left">
+    <a href=""https://www.youtube.com/watch?v=H9xwR2jB26k""><strong>Bossfight video»<strong></a>
+</div>
+
 
 ### The minimum I will most certainly develop:
-* .. 
-* .. 
+I listed a lot of things which might seem to much to handle. But I don't have to do the 3D1 course so this frees time for programming 2.
+
+#### Level:
+* 10 screens (entire chase/fight sequence is 21 screens)
+* Per screen all obstacles/things Madeline can collide with, die from or interact with
+    - falling platforms
+    - disappearing platforms
+    - pink spikes
+    - jump springs
+* Smooth Screen transitions
+
+#### Mechanics:
+Madeline:
+* Move left/right
+* Jump
+* Crouch
+* Grab
+* Dash, Super Dash, Hyper Dash, Extended Super Dash, Extended Hyper Dash
+<div align="left">
+    <a href="https://celestegame.fandom.com/wiki/Moves"><strong>Mechanics Wiki,<strong></a>
+    <a href="https://www.youtube.com/watch?v=-SQKKG7Dz5c"><strong>Mechanics Video<strong></a>
+</div>
+
+Badeline:
+* Badeline laser attack
+* Badeline Bullet attack
+
+#### Pickups:
+* Dash Crystals
+
+#### Graphics:
+* Pixel art tileset for "main" layer Madeline sits on/collides with
+* Sprite Animations for Madeline mechanics
+* Sprite Animation for Badeline mechanics
+* Background wind effect
+* Particle effects for Madeline mechanics
+* Particle effects for Badeline attacks
+
+#### Sound:
+* Background music
+* Sound effects for:
+  - jumping
+  - dashing
+  - hitting Badeline
+  - badeline Bullet Attack
+  - badeline Laser Attack
+  - collecting Dash Crystals
+  - falling platforms
 
 ### What I will probably make as well:
-* .. 
-* .. 
+Depends on how much time I have left, see section below.
 
 ### What I plan to create if I have enough time left:
-* .. 
-* .. 
+* All 21 screens
+* Other player mechanics
+* Tentacles following Badeline (foreground and background layer)
+* Other background layers
+* Talking sequences with Badeline (text bubbles)
+* Environment animations (water, plants)
+* Lighting effects around Madeline and Badeline
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
 <!-- GETTING STARTED -->
 ## Getting Started
-Detailed instructions on how to run your game project are in this section.
+TO-DO: Detailed instructions on how to run your game project are in this section.
 
 ### Prerequisites
 
