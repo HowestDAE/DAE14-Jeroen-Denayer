@@ -60,7 +60,7 @@ This section gives an overview on which parts of the original game I plan to mak
 
 I will re-create the Badeline boss fight from Chapter 6 in as much detail as possible.
 <div align="left">
-    <a href=""https://www.youtube.com/watch?v=H9xwR2jB26k""><strong>Bossfight video»<strong></a>
+    <a href="https://www.youtube.com/watch?v=H9xwR2jB26k"><strong>Bossfight video»<strong></a>
 </div>
 
 
