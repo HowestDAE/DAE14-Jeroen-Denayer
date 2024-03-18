@@ -2,7 +2,6 @@
 #include <ctime>
 #include "Game.h"
 
-
 void StartHeapControl();
 void DumpMemoryLeaks();
 
@@ -12,7 +11,7 @@ int SDL_main(int argv, char** args)
 
 	StartHeapControl();
 
-	Game* pGame{ new Game{ Window{ "Celeste Chapter 6 - Denayer, Jeroen - 1DAE13", 1280.f, 800.f } } };
+	Game* pGame{ new Game{ Window{ "Celeste - Denayer, Jeroen - 1DAE13", 1280.f, 720.f } } };
 	pGame->Run();
 	delete pGame;
 

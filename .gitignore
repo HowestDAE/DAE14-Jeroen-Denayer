@@ -396,3 +396,7 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Game Project specifics -> do not ignore:
+!**/Libraries/**/x86/
+!**/Libraries/**/x64/

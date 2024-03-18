@@ -21,8 +21,6 @@ struct Point2f
 	float y;
 };
 
-
-
 struct Rectf
 {
 	Rectf( );
@@ -34,7 +32,6 @@ struct Rectf
 	float height;
 
 };
-
 
 struct Color4f
 {
@@ -57,7 +54,6 @@ struct Circlef
 	float radius;
 };
 
-
 struct Ellipsef
 {
 	Ellipsef( );
@@ -69,5 +65,18 @@ struct Ellipsef
 	float radiusY;
 };
 
+struct TileIdx
+{
+	int r; //row
+	int c; //column
+};
+
+struct TileCorners
+{
+	Point2f leftTop;
+	Point2f rightTop;
+	Point2f leftBottom;
+	Point2f rightBottom;
+};
 
 
