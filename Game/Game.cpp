@@ -3,6 +3,7 @@
 #include "Madeline.h"
 #include "Camera.h"
 #include "Level.h"
+#include "GameData.h"
 
 Game::Game( const Window& window ) 
 	:BaseGame{ window }
@@ -18,63 +19,46 @@ Game::~Game( )
 void Game::Initialize( )
 {
 	Rectf vp{ GetViewPort() };
-	m_ActiveLvl = new Level();
-	m_GameInfo.SCREEN_WIDTH				= vp.width;
-	m_GameInfo.SCREEN_HEIGHT			= vp.height;
-	m_GameInfo.G						= -9.81f;
-	m_GameInfo.TILE_SIZE_PIX			= 8;
-	m_GameInfo.WINDOW_NUM_TILES_X		= 40.f;
-	m_GameInfo.WINDOW_NUM_TILES_Y		= 22.5f;
-	m_GameInfo.RENDER_RES_X				= m_GameInfo.TILE_SIZE_PIX * m_GameInfo.WINDOW_NUM_TILES_X;
-	m_GameInfo.RENDER_RES_Y				= m_GameInfo.TILE_SIZE_PIX * m_GameInfo.WINDOW_NUM_TILES_Y;
-	m_GameInfo.RES_SCALE				= m_GameInfo.SCREEN_WIDTH	/ m_GameInfo.RENDER_RES_X;
-	m_GameInfo.TILE_SIZE_PIX_SCALED		= m_GameInfo.TILE_SIZE_PIX * int(m_GameInfo.RES_SCALE);
-	m_GameInfo.PIX_PER_M				= m_GameInfo.TILE_SIZE_PIX * m_GameInfo.RES_SCALE;
-	m_GameInfo.activeLvl				= m_ActiveLvl;
+	m_pActiveLvl = new Level();
+
+	GameData::SetGameData(vp.width, vp.height);
+	GameData::SetActiveLevel(*m_pActiveLvl);
 	
-	const int MADELINE_PIX_HEIGHT{ 24 };
-	const int MADELINE_PIX_WIDTH{ 13 };
-	m_Madeline = new Madeline(Point2f{ 150.f, 100.f }, MADELINE_PIX_WIDTH * m_GameInfo.RES_SCALE, MADELINE_PIX_HEIGHT * m_GameInfo.RES_SCALE);
+	float MADELINE_PIX_WIDTH{ 12 * GameData::RES_SCALE() };
+	float MADELINE_PIX_HEIGHT{ 16 * GameData::RES_SCALE() };
+	m_pMadeline = new Madeline(Point2f{ 150.f, 100.f }, MADELINE_PIX_WIDTH, MADELINE_PIX_HEIGHT);
 }
 
 void Game::Cleanup( )
 {
-	delete m_Madeline;
+	delete m_pMadeline;
+	delete m_pActiveLvl;
+	GameData::Cleanup();
 }
 
 void Game::Update( float elapsedSec )
 {
 	// Check keyboard state
-	const Uint8* pStates = SDL_GetKeyboardState(nullptr);
-	if (pStates[SDL_SCANCODE_LEFT])
-		m_Madeline->Move(elapsedSec, Madeline::Direction::Left);
-	if (pStates[SDL_SCANCODE_RIGHT])
-		m_Madeline->Move(elapsedSec, Madeline::Direction::Right);
-	if (pStates[SDL_SCANCODE_UP])
-		m_Madeline->Move(elapsedSec, Madeline::Direction::Up);
-	if (pStates[SDL_SCANCODE_DOWN])
-		m_Madeline->Move(elapsedSec, Madeline::Direction::Down);
-
-	m_Madeline->Update(elapsedSec, m_GameInfo);
+	const Uint8* pKeyStates = SDL_GetKeyboardState(nullptr);
+	std::vector<Madeline::Action> actions{};
+	if (pKeyStates[SDL_SCANCODE_LEFT]) actions.push_back(Madeline::Action::MovingLeft);
+	if (pKeyStates[SDL_SCANCODE_RIGHT]) actions.push_back(Madeline::Action::MovingRight);
+	if (pKeyStates[SDL_SCANCODE_UP] || pKeyStates[SDL_SCANCODE_SPACE]) actions.push_back(Madeline::Action::Jumping);
+	if (pKeyStates[SDL_SCANCODE_DOWN]) actions.push_back(Madeline::Action::MovingDown);
+	m_pMadeline->Update(elapsedSec, actions);
 }
 
 void Game::Draw( ) const
 {
 	ClearBackground( );
 
-	m_ActiveLvl->Draw(m_GameInfo);
-	m_Madeline->Draw(m_GameInfo);
+	m_pActiveLvl->Draw();
+	m_pMadeline->Draw();
 }
 
 void Game::ProcessKeyDownEvent( const SDL_KeyboardEvent & e )
 {
 	//std::cout << "KEYDOWN event: " << e.keysym.sym << std::endl;
-	switch (e.keysym.sym)
-	{
-	case SDLK_SPACE:
-		m_Madeline->Jump();
-		break;
-	}
 }
 
 void Game::ProcessKeyUpEvent( const SDL_KeyboardEvent& e )

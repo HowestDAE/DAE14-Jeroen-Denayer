@@ -323,17 +323,25 @@ bool utils::IsOverlapping( const Point2f& a, const Point2f& b, const Rectf& r )
 bool utils::IsOverlapping( const Rectf& r1, const Rectf& r2 )
 {
 	// If one rectangle is on left side of the other
-	if ( ( r1.left + r1.width ) < r2.left || ( r2.left + r2.width ) < r1.left )
-	{
-		return false;
-	}
+	//if ( ( r1.left + r1.width ) < r2.left || ( r2.left + r2.width ) < r1.left )
+	//{
+	//	return false;
+	//}
 
 	// If one rectangle is under the other
-	if ( r1.bottom > ( r2.bottom + r2.height ) || r2.bottom > ( r1.bottom + r1.height ) )
+	//if ( r1.bottom > ( r2.bottom + r2.height ) || r2.bottom > ( r1.bottom + r1.height ) )
+	//{
+	//	return false;
+	//}
+	if (r1.left + r1.width < r2.left || r1.left > r2.left + r2.width)
 	{
 		return false;
 	}
 
+	if (r1.bottom + r1.height < r2.bottom || r1.bottom > r2.bottom + r2.height)
+	{
+		return false;
+	}
 	return true;
 }
 
@@ -481,6 +489,10 @@ bool utils::IsPointInPolygon( const Point2f& p, const Point2f* vertices, size_t 
 	}
 }
 
+/*
+Calculating lambda1 and lambda 2 is done by considering
+p1 as the start of line/ray, and p2 as the end of the line/ray
+*/
 bool utils::IntersectLineSegments( const Point2f& p1, const Point2f& p2, const Point2f& q1, const Point2f& q2, float& outLambda1, float& outLambda2, float epsilon )
 {
 	bool intersecting{ false };
@@ -503,7 +515,7 @@ bool utils::IntersectLineSegments( const Point2f& p1, const Point2f& p2, const P
 		outLambda1 = num1 / denom;
 		outLambda2 = num2 / denom;
 	}
-	else // are parallel
+	else // lines are parallel
 	{
 		// Connect start points
 		Vector2f p1q1{ p1, q1 };
@@ -516,16 +528,48 @@ bool utils::IntersectLineSegments( const Point2f& p1, const Point2f& p2, const P
 			return false;
 		}
 
-		// Check the 4 conditions
 		outLambda1 = 0;
 		outLambda2 = 0;
-		if (utils::IsPointOnLineSegment(p1, q1, q2) ||
-			utils::IsPointOnLineSegment(p2, q1, q2) ||
-			utils::IsPointOnLineSegment(q1, p1, p2) ||
-			utils::IsPointOnLineSegment(q2, p1, p2))
+
+		//Check all 4 overlapping possibilities
+		bool p1OnQ{ utils::IsPointOnLineSegment(p1, q1, q2) };
+		bool p2OnQ{ utils::IsPointOnLineSegment(p2, q1, q2) };
+		bool q1OnP{ utils::IsPointOnLineSegment(q1, p1, p2) };
+		bool q2OnP{ utils::IsPointOnLineSegment(q2, p1, p2) };
+
+		//1st line lies completely on 2nd line
+		if (p1OnQ && p2OnQ)
 		{
-			intersecting = true;
+			outLambda1 = 1;
+			outLambda2 = 0;
 		}
+		else
+		{
+			//Find lambda 1 and 2 based on the min distance p and q overlap, relative to the length of p
+			float minDist{};
+			//2nd line lies completely on 1st line/ray
+			if (q1OnP && q2OnP)
+			{
+				//Find closest end point of q to p1/rayStart
+				float q1p1Dist{ GetDistance(q1, p1) };
+				float q2p2Dist{ GetDistance(q2, p2) };
+				minDist = std::min(q1p1Dist, q2p2Dist);
+			}
+			//2 lines partially overlap
+			else if ((p1OnQ || p2OnQ) && (q1OnP || q2OnP))
+			{
+				//Find the end point of q that lies on p
+				//This is also the closest point to p1/rayStart
+				const Point2f& qOnP{ (q1OnP) ? q1 : q2 };
+				minDist = GetDistance(p1, qOnP);
+			}
+			float p1p2Length{ p1p2.Length() };
+			outLambda1 = minDist / p1p2Length;
+			outLambda2 = 1 - outLambda1;
+		}
+		//If outLambda1 and outLambda2 are not 0 then there is an intersection
+		if (outLambda1 && outLambda2)
+			intersecting = true;
 	}
 	return intersecting;
 }
@@ -571,7 +615,7 @@ bool utils::Raycast( const Point2f* vertices, const size_t nrVertices, const Poi
 			float lambda2{};
 			if ( IntersectLineSegments( rayP1, rayP2, q1, q2, lambda1, lambda2 ) )
 			{
-				if ( lambda1 > 0 && lambda1 <= 1 && lambda2 > 0 && lambda2 <= 1 )
+				if ( lambda1 >= 0 && lambda1 <= 1 && lambda2 >= 0 && lambda2 <= 1 )
 				{
 					HitInfo linesHitInfo{};
 					linesHitInfo.lambda = lambda1;
@@ -681,6 +725,27 @@ bool utils::IntersectRectLine(const Rectf& r, const Point2f& p1, const Point2f& 
 	intersectMin = tMin;
 	intersectMax = tMax;
 	return true;
+}
+
+RectCorners utils::GetRectCorners(const Rectf& rect)
+{
+	return RectCorners{
+		Point2f{rect.left, rect.bottom},
+		Point2f{rect.left, rect.bottom + rect.height},
+		Point2f{rect.left + rect.width, rect.bottom + rect.height},
+		Point2f{rect.left + rect.width, rect.bottom}
+	};
+}
+
+std::vector<Point2f> utils::GetRectVertices(const Rectf& rect)
+{
+	RectCorners corners{ GetRectCorners(rect) };
+	std::vector<Point2f> verts{};
+	verts.push_back(corners.leftBottom);
+	verts.push_back(corners.leftTop);
+	verts.push_back(corners.rightTop);
+	verts.push_back(corners.rightBottom);
+	return verts;
 }
 
 #pragma endregion CollisionFunctionality

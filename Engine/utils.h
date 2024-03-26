@@ -83,4 +83,10 @@ namespace utils
 
 #pragma endregion CollisionFunctionality
 
+
+#pragma region RectFunctionality
+	RectCorners GetRectCorners(const Rectf& rect);
+	std::vector<Point2f> GetRectVertices(const Rectf& rect);
+#pragma endregion RectFunctionality
+
 }

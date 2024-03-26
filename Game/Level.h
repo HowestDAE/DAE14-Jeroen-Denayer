@@ -7,16 +7,16 @@ class Level final
 public:
 	Level();
 
-	void Draw(const Game::GameInfo& gameInfo) const;
-	TileIdx GetTileIdxByPos(const Point2f& pos, const Game::GameInfo& gameInfo) const;
+	void Draw() const;
+	TileIdx GetTileIdxByPos(const Point2f& pos, bool offsetTop = false) const;
 	int GetTileID(int row, int col) const;
-	Rectf GetTileRect(TileIdx tileIdx, const Game::GameInfo& gameInfo) const;
-	TileCorners GetTileCorners(TileIdx tileIdx, const Game::GameInfo& gameInfo) const;
+	Rectf GetTileRect(TileIdx tileIdx) const;
+	RectCornerTileIndices GetRectCornerTileIndices(const Rectf& rect) const;
 private:
 	void FlipLevel();
 
 	int m_Rows;
 	int m_Cols;
-	std::vector< std::vector<int> > m_Data;
+	std::vector< std::vector<int8_t> > m_Data;
 };
 

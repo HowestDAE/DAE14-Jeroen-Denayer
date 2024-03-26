@@ -21,11 +21,19 @@ struct Point2f
 	float y;
 };
 
+struct RectCorners
+{
+	Point2f leftBottom;
+	Point2f leftTop;
+	Point2f rightTop;
+	Point2f rightBottom;
+};
+
 struct Rectf
 {
 	Rectf( );
 	explicit Rectf( float left, float bottom, float width, float height );
-	
+
 	float left;
 	float bottom;
 	float width;
@@ -71,12 +79,10 @@ struct TileIdx
 	int c; //column
 };
 
-struct TileCorners
+struct RectCornerTileIndices
 {
-	Point2f leftTop;
-	Point2f rightTop;
-	Point2f leftBottom;
-	Point2f rightBottom;
+	TileIdx leftBottom;
+	TileIdx leftTop;
+	TileIdx rightTop;
+	TileIdx rightBottom;
 };
-
-

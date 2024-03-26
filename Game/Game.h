@@ -27,23 +27,6 @@ public:
 	void ProcessMouseMotionEvent( const SDL_MouseMotionEvent& e ) override;
 	void ProcessMouseDownEvent( const SDL_MouseButtonEvent& e ) override;
 	void ProcessMouseUpEvent( const SDL_MouseButtonEvent& e ) override;
-
-	struct GameInfo
-	{
-		float SCREEN_WIDTH;
-		float SCREEN_HEIGHT;
-		float G;
-		int	  TILE_SIZE_PIX;
-		float WINDOW_NUM_TILES_X;
-		float WINDOW_NUM_TILES_Y;
-		float RENDER_RES_X;
-		float RENDER_RES_Y;
-		float RES_SCALE;
-		int   TILE_SIZE_PIX_SCALED;
-		int   PIX_PER_M;
-		Level* activeLvl;
-	};
-
 private:
 	//Functions
 	void Initialize();
@@ -53,7 +36,6 @@ private:
 	//Const Members
 
 	//Members
-	GameInfo m_GameInfo;
-	Level* m_ActiveLvl;
-	Madeline* m_Madeline;
+	Level* m_pActiveLvl;
+	Madeline* m_pMadeline;
 };

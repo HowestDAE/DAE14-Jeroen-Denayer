@@ -2,147 +2,258 @@
 #include "Madeline.h"
 #include "Level.h"
 #include <algorithm>
+#include <limits>
+#include "GameData.h"
 
 Madeline::Madeline(const Point2f pos, float width, float height)
-	: m_Bounds{ Rectf{pos.x, pos.y, width, height} }
-	, m_Speed{ 10.f }
-	, m_State{ State::Idle }
-	, m_JUMP_ADDED_VEL{ 30.f }
-	, m_Test{ false }
+	: m_State{ State::Idle }
+	, m_Bounds{ Rectf{pos.x, pos.y, width, height} }
+	, m_Vel{ Vector2f{} }
+	, m_RunningSpeed{ 14.f }
+	, m_Jump_Speed{ sqrtf(abs(2 * GameData::G() * GameData::MADELINE_JUMP_HEIGHT())) }
+	, m_Max_Fall_Speed{ -10.f }
+	, m_OnGround{}
+	, m_AgainstWall{}
+	, m_MovingRight{}
+	, m_MovingUp{}
+	, m_MovingInX{}
+	, m_MovingInY{}
+	, m_VelBasedCornerTiles{ VelBasedCornerTiles{} }
 {
 }
 
-void Madeline::Draw(const Game::GameInfo& gameInfo) const
+void Madeline::Draw() const
 {
 	utils::SetColor(Color4f{ 1.f, 0.f, 0.f, 1.f });
 	utils::FillRect(GetBounds());
 
 	//Visualize tiles where collision can happen
-	for (const TileIdx& tileIdx : m_CollisionTiles)
-	{
-		Rectf tileRect{ gameInfo.activeLvl->GetTileRect(tileIdx, gameInfo) };
-		utils::SetColor(Color4f{ 0.f, 1.f, 0.f, 1.f });
-		utils::DrawRect(tileRect);
-
-		int tileID{ gameInfo.activeLvl->GetTileID(tileIdx.r, tileIdx.c) };
-		if (tileID != 1) continue; //no collision
-		TileCorners tileCorners{ gameInfo.activeLvl->GetTileCorners(tileIdx, gameInfo) };
-		utils::SetColor(Color4f{ 0.f, 0.f, 1.f, 1.f });
-		utils::DrawLine(tileCorners.leftTop, tileCorners.rightBottom, 3.f);
-		utils::DrawLine(tileCorners.leftBottom, tileCorners.rightTop, 3.f);
-	}
+	//DrawCollision(gameInfo);
 }
 
-void Madeline::Update(float dt, const Game::GameInfo& gameInfo)
+void Madeline::Update(float dt, std::vector<Action> actions)
 {
-	//if (m_State == State::Idle && m_Vel.x == 0.f && m_Vel.y <= 0.f) return;
-
 	Rectf prevBounds{ m_Bounds };
+	std::cout << "CanJump: " << m_CanJump << " Jumping: " << m_Jumping << std::endl;
+	if (ContainsAction(actions, Action::MovingLeft) && !ContainsAction(actions, Action::MovingRight))
+		m_Vel.x = -m_RunningSpeed;
+	if (ContainsAction(actions, Action::MovingRight) && !ContainsAction(actions, Action::MovingLeft))
+		m_Vel.x = m_RunningSpeed;
+	if (m_CanJump || m_Jumping)
+		UpdateJumpVel(dt, ContainsAction(actions, Action::Jumping));
 
-	float velDistX{ m_Vel.x * gameInfo.PIX_PER_M * dt };
+	float velDistX{ m_Vel.x * GameData::PIX_PER_M() * dt };
+	m_Vel.y += GameData::G() * dt;
+	//if (m_Vel.y < m_Max_Fall_Speed)
+	//	m_Vel.y = m_Max_Fall_Speed;
+	float velDistY{ m_Vel.y * dt * GameData::PIX_PER_M() };
 	m_Bounds.left += velDistX;
-
-	m_Vel.y += -(gameInfo.G * gameInfo.G) * dt;
-	float velDistY{ m_Vel.y * gameInfo.PIX_PER_M * dt };
 	m_Bounds.bottom += velDistY;
 
-	//Screen boundary checking
-	//if (m_Bounds.bottom < 0.f)
-	//{ 
-	//	m_OnGround = true;
-	//	m_Vel.y = 0.f;
-	//	m_Bounds.bottom = 0.f;
-	//}
+	m_MovingRight = velDistX > 0.f;
+	m_MovingUp = velDistY > 0.f;
+	m_MovingInX = velDistX != 0.f;
+	m_MovingInY = velDistY != 0.f;
 
-	//std::cout << "Vel X: " << m_Vel.x << " Y:" << m_Vel.y << std::endl;
-	bool IsVelUp{ m_Vel.y > 0.0f };
-	bool IsVelRight{ m_Vel.x > 0.f };
-	
-	TileIdx playerTileIdx{ gameInfo.activeLvl->GetTileIdxByPos(Point2f{m_Bounds.left, m_Bounds.bottom}, gameInfo) };
-	Point2f playerCornerPos{ (IsVelRight) ? m_Bounds.left + m_Bounds.width : m_Bounds.left,
-							 (IsVelUp) ? m_Bounds.bottom + m_Bounds.height : m_Bounds.bottom };
-	//Get Tile ranges to check collision
-	SetCollisionTiles(gameInfo);
-	TileIdx cornerTileIdx{ m_CollisionTiles[0] };
+	SetVelBasedCornerTiles();
 
-	//bool xCollision{ false }, yCollision{ false };
-	for (const TileIdx& tileIdx : m_CollisionTiles)
+	//No collision or state changes can possibly happen
+	//TO-Do check how this works when G is enabled cause velDistY will never be 0.f except during perhaps dashes??
+	//if (velDistX == 0.f && velDistY == 0.f)
+	//	return;
+
+	bool xCollision{}, yCollision{}, cornerCollision{};
+	float collX{ float((m_VelBasedCornerTiles.cornerTile.c + int(!m_MovingRight)) * GameData::TILE_SIZE_PIX_SCALED()) };
+	float collY{ float((m_VelBasedCornerTiles.cornerTile.r + int(!m_MovingUp)) * GameData::TILE_SIZE_PIX_SCALED()) };
+	CheckCollisionDirection(xCollision, yCollision, cornerCollision);
+
+	//std::cout << "X: " << xCollision << ", Y: " << yCollision << ", Corner: " << cornerCollision << std::endl;
+	if (cornerCollision && !xCollision && !yCollision) //Convex corner collision
 	{
-		int tileID{ gameInfo.activeLvl->GetTileID(tileIdx.r, tileIdx.c) };
-		if (tileID != 1) continue; //No collision
-		int collX{ (tileIdx.c + int(!IsVelRight)) * gameInfo.TILE_SIZE_PIX_SCALED };
-		int collY{ (tileIdx.r + int(!IsVelUp)) * gameInfo.TILE_SIZE_PIX_SCALED };
-		
-		if (tileIdx.r == cornerTileIdx.r && tileIdx.c == cornerTileIdx.c)
+		float normalX{}, normalY{};
+		float collisionTime{ GetCollisionInfo(prevBounds, Vector2f{ velDistX, velDistY }, collX, collY, normalX, normalY) };
+		if (normalX != 0.f)
 		{
-			Rectf collisionRect{ gameInfo.activeLvl->GetTileRect(tileIdx, gameInfo) };
-			std::vector<Point2f> verts{ 
-				Point2f{collisionRect.left, collisionRect.bottom},
-				Point2f{collisionRect.left, collisionRect.bottom + collisionRect.height},
-				Point2f{collisionRect.left + collisionRect.width, collisionRect.bottom + collisionRect.height},
-				Point2f{collisionRect.left + collisionRect.width, collisionRect.bottom}
-			};
-			utils::HitInfo hitInfo{};
-			const float rayScale{ 1.2f };
-			Point2f rayEnd{ playerCornerPos.x - (velDistX * rayScale), playerCornerPos.y - (velDistY * rayScale) };
-			//Raycast should ALWAYS return true, player entered collision tile with certain
-			//velDistX and velDistY, tracing this dist backwards gives the pos where the player
-			//entered the collision tile
-			if (utils::Raycast(verts, playerCornerPos, rayEnd, hitInfo))
-			{
-				if (hitInfo.intersectPoint.y == collY)
-				{
-					m_Bounds.bottom = collY - m_Bounds.height * int(IsVelUp);
-					m_Vel.y = 0.f;
-				}
-				else if (hitInfo.intersectPoint.x == collX)
-				{
-					m_Bounds.left = collX - m_Bounds.width * int(IsVelRight);
-					m_Vel.x = 0.f;
-				}
-				break;
-			}
+			m_Bounds.left = collX - m_Bounds.width * int(m_MovingRight);
+			yCollision = false;
 		}
-		else if (tileIdx.r == cornerTileIdx.r && tileIdx.c != cornerTileIdx.c)
+		if (normalY != 0.f)
 		{
-			m_Bounds.bottom = collY - m_Bounds.height * int(IsVelUp);
-			m_Vel.y = 0.f;
-			break;
-		}
-		else if (tileIdx.c == cornerTileIdx.c && tileIdx.r != cornerTileIdx.r)
-		{
-			m_Bounds.left = collX - m_Bounds.width * int(IsVelRight);
-			m_Vel.x = 0.f;
-			break;
+			m_Bounds.bottom = collY - m_Bounds.height * int(m_MovingUp);
+			xCollision = false;
 		}
 	}
+	else if (xCollision && !yCollision) //Wall collision
+		m_Bounds.left = collX - m_Bounds.width * int(m_MovingRight);
+	else if (yCollision && !xCollision) //Ground / ceiling collision
+		m_Bounds.bottom = collY - m_Bounds.height * int(m_MovingUp);
+	else if (xCollision && yCollision) //Concave corner collision
+	{
+		m_Bounds.left = collX - m_Bounds.width * int(m_MovingRight);
+		m_Bounds.bottom = collY - m_Bounds.height * int(m_MovingUp);
+	}
+
+	//Set state
+	m_OnGround = !m_MovingUp && yCollision;
+	m_AgainstWall = xCollision;
+	if (m_OnGround && !m_MovingInX) m_State = State::Idle;
+	else if (m_OnGround && m_MovingInX) m_State = State::Running;
+	else if (!m_OnGround && m_AgainstWall && m_MovingInX) m_State = State::Hanging;
+	else if (!m_OnGround && m_MovingUp) m_State = State::Jumping;
+	else if (!m_OnGround && !m_MovingUp) m_State = State::Falling;
+
 	m_Vel.x = 0.f;
+	if (yCollision)
+		m_Vel.y = 0.f;
+
+	if (m_OnGround)
+	{
+		ResetJump();
+	}
 	//m_Vel.y = 0.f; //Remove when enabling gravity again
 }
 
-void Madeline::Move(float dt, Direction dir)
+void Madeline::UpdateJumpVel(float dt, bool jumpKeyPressed)
 {
-	switch (dir)
+	if (jumpKeyPressed)
 	{
-	case Direction::Left:
-		m_Vel.x = -m_Speed;
-		break;
-	case Direction::Right:
-		m_Vel.x = m_Speed;
-		break;
-	case Direction::Up:
-		m_Vel.y = m_Speed;
-		break;
-	case Direction::Down:
-		m_Vel.y = -m_Speed;
-		break;
+		if (!m_Jumping)
+		{
+			m_Vel.y = m_Jump_Speed;
+			m_CanJump = false;
+			m_Jumping = true;
+		}
+		m_PercentageInJump += dt / GameData::MADELINE_JUMP_TIME();
+		if (m_PercentageInJump >= 1.f) //reached max jump height
+			m_Jumping = false;
+	}
+	else if (m_Jumping)
+	{
+		if (m_Vel.y > 0.f)
+			m_Vel.y *= 0.75f; //Decrease vel over time to slow down
+		else
+			m_Jumping = false;
 	}
 }
 
-void Madeline::Jump()
+void Madeline::ResetJump()
 {
-	m_Test = true;
-	//m_Vel.y += m_JUMP_ADDED_VEL;
+	m_PercentageInJump = 0.f;
+	m_Jumping = false;
+	m_CanJump = true;
+}
+
+void Madeline::CheckCollisionDirection(bool& xCollision, bool& yCollision, bool& cornerCollision) const
+{
+	TileIdx cornerTile{ m_VelBasedCornerTiles.cornerTile };
+	TileIdx xCornerTile{ m_VelBasedCornerTiles.xCornerTile };
+	TileIdx yCornerTile{ m_VelBasedCornerTiles.yCornerTile };
+
+	if (m_MovingInX && m_MovingInY)
+	{
+		int tideID{ GameData::ActiveLvl()->GetTileID(cornerTile.r, cornerTile.c) };
+		if (tideID == 1)
+			cornerCollision = true;
+	}
+
+	//Collision in x can only happen when player is moving in x direction
+	if (m_MovingInX)
+	{
+		int minRow{ (m_MovingUp) ? yCornerTile.r : cornerTile.r + int(m_MovingInY) };
+		int maxRow{ (m_MovingUp) ? cornerTile.r + int(!m_MovingInY) : yCornerTile.r + 1 };
+		//Check all tiles left or right from the player
+		for (int row{ minRow }; row < maxRow; ++row)
+		{
+			int tideID{ GameData::ActiveLvl()->GetTileID(row, cornerTile.c) };
+			if (tideID != 1) continue;
+			xCollision = true;
+			break;
+		}
+	}
+	//Collision in y can only happen when player is moving in y direction
+	if (m_MovingInY)
+	{
+		int minCol{ (m_MovingRight) ? xCornerTile.c : cornerTile.c + int(m_MovingInX) };
+		int maxCol{ (m_MovingRight) ? cornerTile.c + int(!m_MovingInX) : xCornerTile.c + 1 };
+		//Check all tiles left or right from the player
+		for (int col{ minCol }; col < maxCol; ++col)
+		{
+			int tideID{ GameData::ActiveLvl()->GetTileID(cornerTile.r, col) };
+			if (tideID != 1) continue;
+			yCollision = true;
+			break;
+		}
+	}
+}
+
+float Madeline::GetCollisionInfo(const Rectf& b1, const Vector2f vel, const float collX, const float collY, float& normalX, float& normalY) const
+{
+	float xPos{ (m_MovingRight) ? b1.left + b1.width : b1.left };
+	float yPos{ (m_MovingUp) ? b1.bottom + b1.height : b1.bottom };
+	//Check if b1 is flush with b2 in x or y
+	//Equality check only return true when x or y was reset to collX or collY prev frame
+	bool xAlreadyColliding{ xPos == collX };
+	bool yAlreadyColliding{ yPos == collY };
+
+	//Find the distance between the objects on the near side for both x and y
+	float entryDistX{ std::abs(xPos - collX) };
+	float entryDistY{ std::abs(yPos - collY) };
+
+	float velPercentageX{ -std::numeric_limits<float>::infinity() };
+	float velPercentageY{ -std::numeric_limits<float>::infinity() };
+	//Find time of collision for each axis, if statement prevents divide by zero
+	if (!yAlreadyColliding && m_MovingInX)
+		velPercentageX = entryDistX / std::abs(vel.x);
+	if (!xAlreadyColliding && m_MovingInY)
+		velPercentageY = entryDistY / std::abs(vel.y);
+
+	//A small floating point error can occur when dividing entryDist / absVel when 
+	//the 2 boxes are perfectly against eachother in x or y
+	float epsilon{ 0.001f };
+	if (velPercentageX > 1.f && velPercentageX < 1.f + epsilon)
+		velPercentageX = 1.f;
+	if (velPercentageY > 1.f && velPercentageY < 1.f + epsilon)
+		velPercentageY = 1.f;
+
+	//If both % are -inf then no collision happenend
+	if (velPercentageX < 0.f && velPercentageY < 0.f) return 1.f;
+	//Shouldn't happen !!! Dist entered in x or y should always be lower then velX or velY
+	else if (velPercentageX > 1.f && velPercentageY > 1.f)
+	{
+		std::cout << "Unhandled collision" << std::endl;
+	}
+
+	bool xCollision{}, yCollision{};
+	//Find the earliest times of collision
+	float entryTime{ 1.f };
+	if (velPercentageX <= 1.f && (velPercentageY < 0.f || velPercentageY > 1.f))
+	{
+		entryTime = velPercentageX;
+		xCollision = true;
+	}
+	else if (velPercentageY <= 1.f && (velPercentageX < 0.f || velPercentageX > 1.f))
+	{
+		entryTime = velPercentageY;
+		yCollision = true;
+	}
+	else if (velPercentageY <= velPercentageX)
+	{
+		entryTime = velPercentageY;
+		yCollision = true;
+	}
+	else
+	{
+		entryTime = velPercentageX;
+		xCollision = true;
+	}
+
+	// calculate normal of collided surface
+	if (xCollision)
+		normalX = (vel.x > 0.f) ? -1.f : 1.f;
+	else
+		normalY = (vel.y > 0.f) ? -1.f : 1.f;
+
+	return entryTime;
 }
 
 Rectf Madeline::GetBounds() const
@@ -150,73 +261,84 @@ Rectf Madeline::GetBounds() const
 	return m_Bounds;
 }
 
-void Madeline::SetCollisionTiles(const Game::GameInfo& gameInfo)
+void Madeline::SetVelBasedCornerTiles()
 {
-	m_CollisionTiles.clear();
+	RectCornerTileIndices corners{ GameData::ActiveLvl()->GetRectCornerTileIndices(m_Bounds) };
 
-	//Find the 4 corner tiles Madeline overlaps with
-	TileIdx leftBottomIdx{ gameInfo.activeLvl->GetTileIdxByPos(Point2f{ m_Bounds.left, m_Bounds.bottom }, gameInfo) };
-	TileIdx rightTopIdx{ gameInfo.activeLvl->GetTileIdxByPos(Point2f{ m_Bounds.left + m_Bounds.width, m_Bounds.bottom + m_Bounds.height }, gameInfo) };
-	TileIdx leftTopIdx{ rightTopIdx.r, leftBottomIdx.c };
-	TileIdx rightBottomIdx{ leftBottomIdx.r, rightTopIdx.c };
-
-	bool IsVelUp{ m_Vel.y > 0.f };
-	bool IsVelRight{ m_Vel.x > 0.f };
 	//Select 3/4 corner tiles based on movement/velocity direction
-	//Collision can only happen in tiles somewhere between these 3 corners
 	TileIdx cornerTile{
-		(IsVelUp) ? leftTopIdx.r : leftBottomIdx.r,
-		(IsVelRight) ? rightTopIdx.c : leftTopIdx.c,
+		(m_MovingUp) ? corners.leftTop.r : corners.leftBottom.r,
+		(m_MovingRight) ? corners.rightTop.c : corners.leftTop.c,
 	};
 	TileIdx xCornerTile{ //The corner tile left or right from the cornerTile
 		cornerTile.r,
-		(IsVelRight) ? leftTopIdx.c : rightTopIdx.c
+		(m_MovingRight) ? corners.leftTop.c : corners.rightTop.c
 	};
 	TileIdx yCornerTile{ //The corner tile up or down from the cornerTile
-		(IsVelUp) ? leftBottomIdx.r : leftTopIdx.r,
+		(m_MovingUp) ? corners.leftBottom.r : corners.leftTop.r,
 		cornerTile.c
 	};
-
-	m_CollisionTiles.push_back(cornerTile);
-	//Only check tiles left or right when the player is moving in the x-direction
-	if (m_Vel.x != 0.f)
-	{
-		bool IsCornerOnTop{ cornerTile.r > yCornerTile.r };
-		int minRow{ (IsCornerOnTop) ? yCornerTile.r		: cornerTile.r };
-		int maxRow{ (IsCornerOnTop) ? cornerTile.r + 1	: yCornerTile.r + 1 };
-		//Add all tiles above or below the player
-		for (int row{ minRow }; row < maxRow; ++row)
-			m_CollisionTiles.push_back(TileIdx{ row, cornerTile.c });
-	}
-	//Add all tiles left or right from the player
-	bool IsCornerLeft{ cornerTile.c < xCornerTile.c };
-	int minCol{ (IsCornerLeft) ? cornerTile.c		: xCornerTile.c };
-	int maxCol{ (IsCornerLeft) ? xCornerTile.c + 1	: cornerTile.c + 1 };
-	for (int col{ minCol }; col < maxCol; ++col)
-		m_CollisionTiles.push_back(TileIdx{ cornerTile.r, col });
+	m_VelBasedCornerTiles.cornerTile = cornerTile;
+	m_VelBasedCornerTiles.xCornerTile = xCornerTile;
+	m_VelBasedCornerTiles.yCornerTile = yCornerTile;
 }
 
+bool Madeline::ContainsAction(std::vector<Action> actions, Action action)
+{
+	for (Action a : actions)
+		if (a == action)
+			return true;
+	return false;
+}
 
+void Madeline::DrawCollision() const
+{
+	TileIdx cornerTile{ m_VelBasedCornerTiles.cornerTile };
+	TileIdx xCornerTile{ m_VelBasedCornerTiles.xCornerTile };
+	TileIdx yCornerTile{ m_VelBasedCornerTiles.yCornerTile };
 
-//float playerY{ (IsVelUp) ? m_Bounds.bottom + m_Bounds.height : m_Bounds.bottom };
-//float depthY{ abs(playerY - collY) }; //The y Distance the player is inside of the collision tile
-//bool prevOnGround{ abs(depthY - velDistY) < 1.f };
-//if (!prevOnGround && velDistX != 0.f)
-//{
-//	float velPercentageY{ 0.f };
-//	if (velDistY != 0.f)
-//		velPercentageY = depthY / abs(velDistY); //The percentage of velDistY that is inside the collision tile
-//	m_Bounds.left += velPercentageY * velDistX;
-//	//std::cout << "velPercentageY: " << velPercentageY << std::endl;
-//}
+	if (m_MovingInX && m_MovingInY)
+	{
+		DrawCollisionTile(cornerTile, Color4f{ 0.f, 0.f, 1.f, 1.f });
+	}
 
-//float playerX{ (IsVelRight) ? m_Bounds.left + m_Bounds.width : m_Bounds.left };
-//float depthX{ abs(playerX - collX) }; //The x Distance the player is inside of the collision tile
-//bool prevOnWall{ abs(depthX - velDistX) < 1.f };
-//if (!prevOnWall && velDistY != 0.f)
-//{
-//	float velPercentageX{ 0.f };
-//	if (velDistX != 0.f)
-//		velPercentageX = depthX / abs(velDistX); //The percentage of velDistX that is inside the collision tile
-//	m_Bounds.bottom += velPercentageX * velDistY;
-//	//st
+	//Collision in x can only happen when player is moving in x direction
+	if (m_MovingInX)
+	{
+		int minRow{ (m_MovingUp) ? yCornerTile.r : cornerTile.r + int(m_MovingInY) };
+		int maxRow{ (m_MovingUp) ? cornerTile.r + int(!m_MovingInY) : yCornerTile.r + 1 };
+		//Check all tiles left or right from the player
+		for (int row{ minRow }; row < maxRow; ++row)
+		{
+			TileIdx yTile{ row, cornerTile.c };
+			DrawCollisionTile(yTile, Color4f{ 0.f, 1.f, 0.f, 1.f });
+		}
+	}
+	//Collision in y can only happen when player is moving in y direction
+	if (m_MovingInY)
+	{
+		int minCol{ (m_MovingRight) ? xCornerTile.c : cornerTile.c + int(m_MovingInX) };
+		int maxCol{ (m_MovingRight) ? cornerTile.c + int(!m_MovingInX) : xCornerTile.c + 1 };
+		//Check all tiles left or right from the player
+		for (int col{ minCol }; col < maxCol; ++col)
+		{
+			TileIdx xTile{ cornerTile.r, col };
+			DrawCollisionTile(xTile, Color4f{ 1.f, 0.f, 0.f, 1.f });
+		}
+	}
+}
+
+void Madeline::DrawCollisionTile(TileIdx tileIdx, const Color4f& color) const
+{
+	Rectf tileRect{ GameData::ActiveLvl()->GetTileRect(tileIdx) };
+	utils::SetColor(color);
+	utils::DrawRect(tileRect, 2.f);
+	int tideID{ GameData::ActiveLvl()->GetTileID(tileIdx.r, tileIdx.c) };
+	if (tideID == 1)
+	{
+		RectCorners tileCorners{ utils::GetRectCorners(tileRect) };
+		utils::SetColor(Color4f{ 1.f, 0.f, 0.f, 1.f });
+		utils::DrawLine(tileCorners.leftTop, tileCorners.rightBottom, 3.f);
+		utils::DrawLine(tileCorners.leftBottom, tileCorners.rightTop, 3.f);
+	}
+}
