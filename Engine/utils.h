@@ -89,4 +89,8 @@ namespace utils
 	std::vector<Point2f> GetRectVertices(const Rectf& rect);
 #pragma endregion RectFunctionality
 
+#pragma region PhysicsFunctionality
+	AccAndVel AccAndVelToTravelDistInTime(float dist, float time);
+#pragma endregion PhysicsFunctionality
+	
 }

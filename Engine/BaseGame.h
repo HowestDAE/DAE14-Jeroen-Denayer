@@ -51,7 +51,9 @@ public:
 	{
 		return m_Viewport;
 	}
-
+protected:
+	// SDL controller
+	SDL_GameController* m_SDLGameController;
 private:
 	// DATA MEMBERS
 	// The window properties
@@ -69,4 +71,5 @@ private:
 	// FUNCTIONS
 	void InitializeGameEngine( );
 	void CleanupGameEngine( );
+	SDL_GameController* FindController();
 };

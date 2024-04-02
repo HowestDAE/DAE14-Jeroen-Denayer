@@ -38,4 +38,6 @@ private:
 	//Members
 	Level* m_pActiveLvl;
 	Madeline* m_pMadeline;
+
+	bool m_LMBPressed;
 };

@@ -77,6 +77,8 @@ struct TileIdx
 {
 	int r; //row
 	int c; //column
+
+	bool operator==(const TileIdx& rhs);
 };
 
 struct RectCornerTileIndices
@@ -85,4 +87,16 @@ struct RectCornerTileIndices
 	TileIdx leftTop;
 	TileIdx rightTop;
 	TileIdx rightBottom;
+};
+
+struct AccAndVel
+{
+	float acc;
+	float vel;
+};
+
+struct Vector2i
+{
+	int x;
+	int y;
 };

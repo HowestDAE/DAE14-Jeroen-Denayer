@@ -14,10 +14,9 @@ public:
 	static void		Cleanup();
 	static void		SetGameData(float screenWidth, float screenHeight);
 	static void		SetActiveLevel(Level& level);
+	static void		SetGravity(float g);
 
 	//static float
-	static float	MADELINE_JUMP_HEIGHT();
-	static float	MADELINE_JUMP_TIME();
 	static float 	G();
 	static int		TILE_SIZE_PIX();
 	static float	WINDOW_NUM_TILES_X();
@@ -35,8 +34,6 @@ private:
 
 	static GameData s_Instance;
 
-	float	m_MADELINE_JUMP_HEIGHT;
-	float	m_MADELINE_JUMP_TIME;
 	float	m_G;
 	int		m_TILE_SIZE_PIX;
 	float	m_WINDOW_NUM_TILES_X;

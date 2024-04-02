@@ -35,11 +35,7 @@ void GameData::Cleanup()
 void GameData::SetGameData(float screenWidth, float screenHeight)
 {
 	GameData& gameData{ Get() };
-	gameData.m_MADELINE_JUMP_HEIGHT = 3.5f; //3.5
-	gameData.m_MADELINE_JUMP_TIME	= 0.35f; //Time to reach max jump height
-	//gameData.m_G					= -9.81f;
-	//Calculate gravity based on madeline's jump height and time to reach that jump height
-	gameData.m_G					= -2 * gameData.m_MADELINE_JUMP_HEIGHT / (gameData.m_MADELINE_JUMP_TIME * gameData.m_MADELINE_JUMP_TIME);
+	gameData.m_G					= -9.81f;
 	gameData.m_TILE_SIZE_PIX		= 8;
 	gameData.m_WINDOW_NUM_TILES_X	= 40.f;
 	gameData.m_WINDOW_NUM_TILES_Y	= 22.5f;
@@ -49,18 +45,18 @@ void GameData::SetGameData(float screenWidth, float screenHeight)
 	gameData.m_RENDER_RES_Y			= gameData.m_TILE_SIZE_PIX * gameData.m_WINDOW_NUM_TILES_Y;
 	gameData.m_RES_SCALE			= gameData.m_SCREEN_WIDTH / gameData.m_RENDER_RES_X;
 	gameData.m_TILE_SIZE_PIX_SCALED = gameData.m_TILE_SIZE_PIX * int(gameData.m_RES_SCALE);
-	gameData.m_PIX_PER_M			= gameData.m_TILE_SIZE_PIX_SCALED;
+	gameData.m_PIX_PER_M			= gameData.m_TILE_SIZE_PIX;
 }
 
 void GameData::SetActiveLevel(Level& level)
 {
-	GameData& gameData{ Get() };
-	gameData.m_pActiveLvl = &level;
+	Get().m_pActiveLvl = &level;
 }
 
-float GameData::MADELINE_JUMP_HEIGHT() { return Get().m_MADELINE_JUMP_HEIGHT; }
-
-float GameData::MADELINE_JUMP_TIME() { return Get().m_MADELINE_JUMP_TIME; }
+void GameData::SetGravity(float g)
+{
+	Get().m_G = g;
+}
 
 float GameData::G() { return Get().m_G; }
 

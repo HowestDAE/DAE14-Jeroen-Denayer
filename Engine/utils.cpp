@@ -748,4 +748,15 @@ std::vector<Point2f> utils::GetRectVertices(const Rectf& rect)
 	return verts;
 }
 
+/*
+Calculate the acc needed to fall x dist in t time
+Also calculate the velocity needed to travel x dist with acc acting against object
+*/
+AccAndVel utils::AccAndVelToTravelDistInTime(float dist, float time)
+{
+	float acc{ 2 * dist / (time * time) }; //s1 = s0 + v0t + 0.5at^2 => a = 2s1 / t ^ 2
+	float vel{ sqrtf(abs(2 * acc * dist)) }; //v1 ^ 2 = v0 ^ 2 + 2a(s1 - s0) => v0 = sqrt(2Gs1)
+	return AccAndVel{acc, vel};
+}
+
 #pragma endregion CollisionFunctionality

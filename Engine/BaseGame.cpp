@@ -30,7 +30,7 @@ void BaseGame::InitializeGameEngine()
 #endif
 
 	// Initialize SDL
-	if (SDL_Init(SDL_INIT_VIDEO /*| SDL_INIT_AUDIO*/) < 0)
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER/*| SDL_INIT_AUDIO*/) < 0)
 	{
 		std::cerr << "BaseGame::Initialize( ), error when calling SDL_Init: " << SDL_GetError() << std::endl;
 		return;
@@ -121,6 +121,8 @@ void BaseGame::InitializeGameEngine()
 		return;
 	}
 	
+	//Find SDL_GameController
+	m_SDLGameController = FindController();
 
 	m_Initialized = true;
 }
@@ -171,6 +173,21 @@ void BaseGame::Run()
 				e.button.y = int(m_Window.height) - e.button.y;
 				this->ProcessMouseUpEvent(e.button);
 				break;
+			case SDL_CONTROLLERDEVICEADDED:
+				if (!m_SDLGameController) {
+					//m_SDLGameController = SDL_GameControllerOpen(e.cdevice.which);
+					m_SDLGameController = FindController();
+				}
+				break;
+			case SDL_CONTROLLERDEVICEREMOVED:
+				if (m_SDLGameController && e.cdevice.which == SDL_JoystickInstanceID(
+					SDL_GameControllerGetJoystick(m_SDLGameController)))
+				{
+					std::cout << "Disconnected Game Controller" << std::endl;
+					SDL_GameControllerClose(m_SDLGameController);
+					m_SDLGameController = FindController();
+				}
+				break;
 			}
 		}
 
@@ -219,4 +236,14 @@ void BaseGame::CleanupGameEngine()
 	EnableMenuItem(hmenu, SC_CLOSE, MF_ENABLED);
 #endif
 
+}
+
+SDL_GameController* BaseGame::FindController() {
+	for (int i = 0; i < SDL_NumJoysticks(); i++) {
+		if (SDL_IsGameController(i)) {
+			std::cout << "Found Game Controller" << std::endl;
+			return SDL_GameControllerOpen(i);
+		}
+	}
+	return nullptr;
 }

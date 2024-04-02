@@ -95,3 +95,8 @@ Ellipsef::Ellipsef( float centerX, float centerY, float radiusX, float radiusY )
 	: Ellipsef{ Point2f{ centerX, centerY }, radiusX, radiusY }
 {
 }
+
+bool TileIdx::operator==(const TileIdx& rhs)
+{
+	return this->r == rhs.r && this->c == rhs.c;
+}
