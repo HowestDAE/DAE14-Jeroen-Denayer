@@ -21,14 +21,6 @@ struct Point2f
 	float y;
 };
 
-struct RectCorners
-{
-	Point2f leftBottom;
-	Point2f leftTop;
-	Point2f rightTop;
-	Point2f rightBottom;
-};
-
 struct Rectf
 {
 	Rectf( );
@@ -38,7 +30,6 @@ struct Rectf
 	float bottom;
 	float width;
 	float height;
-
 };
 
 struct Color4f
@@ -73,20 +64,35 @@ struct Ellipsef
 	float radiusY;
 };
 
+//New structs
+struct RectCorners
+{
+	Point2f leftBottom;
+	Point2f leftTop;
+	Point2f rightTop;
+	Point2f rightBottom;
+};
+
 struct TileIdx
 {
 	int r; //row
 	int c; //column
-
-	bool operator==(const TileIdx& rhs);
 };
+bool operator==(const TileIdx& lhs, const TileIdx& rhs);
 
-struct RectCornerTileIndices
+struct RectCornersTileIdx
 {
 	TileIdx leftBottom;
 	TileIdx leftTop;
 	TileIdx rightTop;
 	TileIdx rightBottom;
+};
+
+struct VelBasedCornerTiles
+{
+	TileIdx corner;
+	TileIdx xCorner;
+	TileIdx yCorner;
 };
 
 struct AccAndVel
@@ -99,4 +105,47 @@ struct Vector2i
 {
 	int x;
 	int y;
+};
+
+struct VelInfo
+{
+	bool left;
+	bool right;
+	bool up;
+	bool down;
+	bool inX;
+	bool inY;
+};
+
+struct CollisionDir
+{
+	bool x;
+	bool left;
+	bool right;
+	bool y;
+	bool up;
+	bool down;
+	bool corner;
+	bool leftBottom;
+	bool leftTop;
+	bool rightTop;
+	bool rightBottom;
+};
+
+struct CollisionDirInfo
+{
+	float collPos;
+	float entryDist;
+	float lambda;
+};
+
+struct CollisionInfo
+{
+	bool collided;
+	VelInfo vIn;
+	CollisionDir collDir;
+	CollisionDirInfo left;
+	CollisionDirInfo right;
+	CollisionDirInfo up;
+	CollisionDirInfo down;
 };

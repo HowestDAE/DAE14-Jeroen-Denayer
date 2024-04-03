@@ -17,6 +17,7 @@
 #include <SDL_image.h>
 
 #pragma warning(default : 26812)
+#include <iostream>
 #include "structs.h"
 #include "utils.h"
-#include <iostream>
+#include "Enums.h"

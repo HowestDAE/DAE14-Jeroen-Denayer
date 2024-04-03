@@ -748,6 +748,40 @@ std::vector<Point2f> utils::GetRectVertices(const Rectf& rect)
 	return verts;
 }
 
+TileIdx utils::GetTileIdxByPos(const Point2f& pos, int tileSize, bool offsetTop)
+{
+	float fRowIdx{ pos.y / tileSize };
+	float fColIdx{ pos.x / tileSize };
+	int rowIdx{ int(fRowIdx) };
+	int colIdx{ int(fColIdx) };
+	//Offset row/col so positions that are perfectly on the border of the next row/col
+	//are still considered to be in the prev row/col
+	if (offsetTop)
+	{
+		if (fRowIdx - int(fRowIdx) == 0.f)
+			--rowIdx;
+		if (fColIdx - int(fColIdx) == 0.f)
+			--colIdx;
+	}
+	return TileIdx{ rowIdx, colIdx };
+}
+
+RectCornersTileIdx utils::GetRectCornersTileIdx(const Rectf& rect, int tileSize)
+{
+	TileIdx leftBottomIdx{ GetTileIdxByPos(Point2f{ rect.left, rect.bottom }, tileSize) };
+	TileIdx rightTopIdx{ GetTileIdxByPos(Point2f{ rect.left + rect.width, rect.bottom + rect.height }, tileSize, true) };
+	TileIdx leftTopIdx{ rightTopIdx.r, leftBottomIdx.c };
+	TileIdx rightBottomIdx{ leftBottomIdx.r, rightTopIdx.c };
+	return RectCornersTileIdx{ leftBottomIdx, leftTopIdx, rightTopIdx, rightBottomIdx };
+}
+
+Rectf utils::GetTileRect(TileIdx tileIdx, int tileSize)
+{
+	int x{ tileIdx.c * tileSize };
+	int y{ tileIdx.r * tileSize };
+	return Rectf{ float(x), float(y), float(tileSize), float(tileSize) };
+}
+
 /*
 Calculate the acc needed to fall x dist in t time
 Also calculate the velocity needed to travel x dist with acc acting against object
@@ -757,6 +791,41 @@ AccAndVel utils::AccAndVelToTravelDistInTime(float dist, float time)
 	float acc{ 2 * dist / (time * time) }; //s1 = s0 + v0t + 0.5at^2 => a = 2s1 / t ^ 2
 	float vel{ sqrtf(abs(2 * acc * dist)) }; //v1 ^ 2 = v0 ^ 2 + 2a(s1 - s0) => v0 = sqrt(2Gs1)
 	return AccAndVel{acc, vel};
+}
+
+VelInfo utils::GetVelInfo(const Vector2f& vel)
+{
+	bool movingLeft{ vel.x < 0.f };
+	bool movingRight{ vel.x > 0.f };
+	bool movingUp{ vel.y > 0.f };
+	bool movingDown{ vel.y < 0.f };
+	bool movingInX{ vel.x != 0.f };
+	bool movingInY{ vel.y != 0.f };
+	return VelInfo{ movingLeft, movingRight, movingUp, movingDown, movingInX, movingInY };
+}
+
+/*
+Select 3/4 corner tiles based on movement/velocity direction
+*/
+VelBasedCornerTiles utils::GetVelBasedCornerTiles(const RectCornersTileIdx& corners, const VelInfo& moving)
+{
+	int bottomRow{ corners.leftBottom.r };
+	int topRow{ corners.leftTop.r };
+	int leftCol{ corners.leftBottom.c };
+	int rightCol{ corners.rightBottom.c };
+	TileIdx corner{
+		(moving.up) ? topRow : bottomRow,
+		(moving.right) ? rightCol : leftCol,
+	};
+	TileIdx xCorner{ //The corner left or right from the corner
+		corner.r,
+		(moving.right) ? leftCol : rightCol
+	};
+	TileIdx yCorner{ //The corner up or down from the corner
+		(moving.up) ? bottomRow : topRow,
+		corner.c
+	};
+	return VelBasedCornerTiles{ corner, xCorner, yCorner };
 }
 
 #pragma endregion CollisionFunctionality

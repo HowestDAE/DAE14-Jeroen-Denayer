@@ -87,10 +87,14 @@ namespace utils
 #pragma region RectFunctionality
 	RectCorners GetRectCorners(const Rectf& rect);
 	std::vector<Point2f> GetRectVertices(const Rectf& rect);
+	TileIdx GetTileIdxByPos(const Point2f& pos, int tileSize, bool offsetTop = false);
+	RectCornersTileIdx GetRectCornersTileIdx(const Rectf& rect, int tileSize);
+	Rectf GetTileRect(TileIdx tileIdx, int tileSize);
 #pragma endregion RectFunctionality
 
 #pragma region PhysicsFunctionality
 	AccAndVel AccAndVelToTravelDistInTime(float dist, float time);
+	VelInfo GetVelInfo(const Vector2f& vel);
+	VelBasedCornerTiles GetVelBasedCornerTiles(const RectCornersTileIdx& corners, const VelInfo& moving);
 #pragma endregion PhysicsFunctionality
-	
 }

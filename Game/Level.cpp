@@ -5,6 +5,8 @@
 Level::Level()
 	: m_Rows{ 23 }
 	, m_Cols{ 40 }
+	, m_TileSize{ 8 }
+	, m_PixPerM{ 8 }
 {
 	//TO-DO Load level data directly from disk
 
@@ -103,24 +105,6 @@ void Level::Draw() const
 	}
 }
 
-TileIdx Level::GetTileIdxByPos(const Point2f& pos, bool offsetTop) const
-{
-	float fRowIdx{ pos.y / GameData::TILE_SIZE_PIX() };
-	float fColIdx{ pos.x / GameData::TILE_SIZE_PIX() };
-	int rowIdx{ int(fRowIdx) };
-	int colIdx{ int(fColIdx) };
-	//Offset row/col so positions that are perfectly on the border of the next row/col
-	//are still considered to be in the prev row/col
-	if (offsetTop)
-	{
-		if (fRowIdx - int(fRowIdx) == 0.f)
-			--rowIdx;
-		if (fColIdx - int(fColIdx) == 0.f)
-			--colIdx;
-	}
-	return TileIdx{ rowIdx, colIdx };
-}
-
 int Level::GetTileID(TileIdx tileIdx) const
 {
 	return GetTileID(tileIdx.r, tileIdx.c);
@@ -132,70 +116,19 @@ int Level::GetTileID(int row, int col) const
 	else return -1;
 }
 
-Rectf Level::GetTileRect(TileIdx tileIdx) const
-{
-	const int tileSizePix{ GameData::TILE_SIZE_PIX() };
-	int x{ tileIdx.c * tileSizePix };
-	int y{ tileIdx.r * tileSizePix };
-	return Rectf{ float(x), float(y), float(tileSizePix), float(tileSizePix) };
-}
-
-RectCornerTileIndices Level::GetRectCornerTileIndices(const Rectf& rect) const
-{
-	TileIdx leftBottomIdx{ GetTileIdxByPos(Point2f{ rect.left, rect.bottom }) };
-	TileIdx rightTopIdx{ GetTileIdxByPos(Point2f{ rect.left + rect.width, rect.bottom + rect.height }, true) };
-	TileIdx leftTopIdx{ rightTopIdx.r, leftBottomIdx.c };
-	TileIdx rightBottomIdx{ leftBottomIdx.r, rightTopIdx.c };
-	return RectCornerTileIndices{leftBottomIdx, leftTopIdx, rightTopIdx, rightBottomIdx };
-}
-
-Level::CollisionInfo Level::DetectCollision(const RectPhysicsInfo& rfi, bool addVelToPos, bool checkCollInX, bool checkCollInY, bool checkCollInVelDir) const
+CollisionInfo Level::DetectRectCollision(const Rectf& bounds, bool checkXDir, bool checkYDir, const Vector2f& vel, float time, bool checkVelDir) const
 {
 	CollisionInfo ci{};
-	ci.vi = GetVelInfo(rfi.vel);
-	if (checkCollInVelDir)
-	{
-		if (!ci.vi.inX)
-			checkCollInX = false;
-		if (!ci.vi.inY)
-			checkCollInY = false;
-	}
-	Rectf prevBounds{ rfi.bounds };
-	SetCollisionDir(rfi, ci, addVelToPos, checkCollInX, checkCollInY, checkCollInVelDir);
+	ci.vIn = utils::GetVelInfo(vel);
+	Vector2f velDist{ vel.x * m_PixPerM * time, vel.y * m_PixPerM * time };
+
+	ci.collDir = GetCollisionDir(bounds, checkXDir, checkYDir, velDist, time, checkVelDir);
 	if (!ci.collDir.x && !ci.collDir.y && !ci.collDir.corner)
 		return ci;
 
 	ci.collided = true;
-
-	Rectf boundsCopy{ rfi.bounds };
-	if (addVelToPos)
-	{
-		boundsCopy.left += rfi.velDist.x;
-		boundsCopy.bottom += rfi.velDist.y;
-	}
-
-	RectCornerTileIndices corners{ GetRectCornerTileIndices(boundsCopy) };
-	float collPosLeft{ float((corners.leftBottom.c + 1) * GameData::TILE_SIZE_PIX()) };
-	float collPosRight{ float(corners.rightBottom.c * GameData::TILE_SIZE_PIX()) };
-	float collPosUp{ float(corners.leftTop.r * GameData::TILE_SIZE_PIX()) };
-	float collPosDown{ float((corners.leftBottom.r + 1) * GameData::TILE_SIZE_PIX()) };
-
-	if (checkCollInVelDir)
-	{
-		ci.collPos.x = (ci.vi.right) ? collPosRight : collPosLeft;
-		ci.collPos.y = (ci.vi.up) ? collPosUp : collPosDown;
-	}
-
-	//Calculate how far the bounds is inside of the collision
-	if (ci.collDir.left)
-		ci.entryDistLeft = collPosLeft - boundsCopy.left;
-	if (ci.collDir.right)
-		ci.entryDistRight = boundsCopy.left + boundsCopy.width - collPosRight;
-	if (ci.collDir.up)
-		ci.entryDistUp = boundsCopy.bottom + boundsCopy.height - collPosUp;
-	if (ci.collDir.down)
-		ci.entryDistDown = collPosDown - boundsCopy.bottom;
-
+	Rectf movedBounds{ bounds.left + velDist.x, bounds.bottom + velDist.y, bounds.width, bounds.height };
+	SetCollDirInfo(movedBounds, velDist, ci);
 	return ci;
 }
 
@@ -204,16 +137,35 @@ Checks for collision between a Rectf and a Level
 If a collision was found, the Rectf is moved to an appropriate position
 The velocity is also modified!!
 */
-Level::CollisionInfo Level::MovePhysicsRect(RectPhysicsInfo& rfi) const
+CollisionInfo Level::MovePhysicsRect(Rectf& bounds, Vector2f& vel, float time) const
 {
-	CollisionInfo ci{ DetectCollision(rfi, true, true, true, true) };
-	if (!ci.collided) //No collision
+	CollisionInfo ci{ DetectRectCollision(bounds, true, true, vel, time, true) };
+
+	//Set position and vel based on collision information
+	if (ci.collDir.x)
 	{
-		rfi.bounds.left += rfi.velDist.x;
-		rfi.bounds.bottom += rfi.velDist.y;
-		return ci;
+		vel.x = 0.f;
+		if (ci.collDir.left && !ci.collDir.right)
+			bounds.left = ci.left.collPos;
+		else if (ci.collDir.right && !ci.collDir.left)
+			bounds.left = ci.right.collPos - bounds.width;
+		// else left && right -> squished form both sides
 	}
-	CollisionResponse(rfi, ci);
+	else
+		bounds.left += vel.x * m_PixPerM * time;
+
+	if (ci.collDir.y)
+	{
+		vel.y = 0.f;
+		if (ci.collDir.up && !ci.collDir.down)
+			bounds.bottom = ci.up.collPos - bounds.height;
+		else if (ci.collDir.down && !ci.collDir.up)
+			bounds.bottom = ci.down.collPos;
+		// else up && down -> squished from both sides
+	}
+	else
+		bounds.bottom += vel.y * m_PixPerM * time;
+
 	return ci;
 }
 
@@ -224,41 +176,6 @@ void Level::FlipLevel()
 	{
 		m_Data[row] = dataCopy[m_Data.size() - 1 - row];
 	}
-}
-
-const Level::VelInfo Level::GetVelInfo(const Vector2f& vel) const
-{
-	bool movingLeft{ vel.x < 0.f };
-	bool movingRight{ vel.x > 0.f };
-	bool movingUp{ vel.y > 0.f };
-	bool movingDown{ vel.y < 0.f };
-	bool movingInX{ vel.x != 0.f };
-	bool movingInY{ vel.y != 0.f };
-	return VelInfo{movingLeft, movingRight, movingUp, movingDown, movingInX, movingInY };
-}
-
-/*
-Select 3/4 corner tiles based on movement/velocity direction
-*/
-Level::VelBasedCornerTiles Level::GetVelBasedCornerTiles(const RectCornerTileIndices& corners, const VelInfo& moving) const
-{
-	int bottomRow{ corners.leftBottom.r };
-	int topRow{ corners.leftTop.r };
-	int leftCol{ corners.leftBottom.c };
-	int rightCol{ corners.rightBottom.c };
-	TileIdx corner{
-		(moving.up) ? topRow : bottomRow,
-		(moving.right) ? rightCol : leftCol,
-	};
-	TileIdx xCorner{ //The corner left or right from the corner
-		corner.r,
-		(moving.right) ? leftCol : rightCol
-	};
-	TileIdx yCorner{ //The corner up or down from the corner
-		(moving.up) ? bottomRow : topRow,
-		corner.c
-	};
-	return VelBasedCornerTiles{ corner, xCorner, yCorner };
 }
 
 bool Level::CheckCollCollision(int col, int minRow, int maxRow) const
@@ -277,144 +194,117 @@ bool Level::CheckRowCollision(int row, int minCol, int maxCol) const
 	return false;
 }
 
-void Level::SetCollisionDir(const RectPhysicsInfo& rfi, CollisionInfo& ci, bool addVelToPos, bool checkCollInX, bool checkCollInY, bool checkCollInVelDir) const
+CollisionDir Level::GetCollisionDir(const Rectf& bounds, bool checkXDir, bool checkYDir, const Vector2f& velDist, float time, bool checkVelDir) const
 {
+	CollisionDir collDir{};
+	VelInfo moving{ utils::GetVelInfo(velDist) };
+	bool checkCollInX{ checkXDir && (!checkVelDir || moving.inX) };
+	bool checkCollInY{ checkYDir && (!checkVelDir || moving.inY) };
+
 	//Checking left/right
 	if (checkCollInX)
 	{
-		Rectf boundsCopy{ rfi.bounds };
-		if (addVelToPos)
-			boundsCopy.left += rfi.velDist.x;
-		RectCornerTileIndices corners{ GetRectCornerTileIndices(boundsCopy) };
+		Rectf boundsCopy{ bounds };
+		boundsCopy.left += velDist.x;
+		RectCornersTileIdx corners{ utils::GetRectCornersTileIdx(boundsCopy, m_TileSize) };
 		int minRow{ corners.leftBottom.r };
 		int maxRow{ corners.leftTop.r };
-		if (!checkCollInVelDir || ci.vi.left)
-			ci.collDir.left = CheckCollCollision(corners.leftBottom.c, minRow, maxRow);
-		if (!checkCollInVelDir || ci.vi.right)
-			ci.collDir.right = CheckCollCollision(corners.rightBottom.c, minRow, maxRow);
-		if (ci.collDir.left || ci.collDir.right)
-			ci.collDir.x = true;
+		if (!checkVelDir || moving.left)
+			collDir.left = CheckCollCollision(corners.leftBottom.c, minRow, maxRow);
+		if (!checkVelDir || moving.right)
+			collDir.right = CheckCollCollision(corners.rightBottom.c, minRow, maxRow);
+		if (collDir.left || collDir.right)
+			collDir.x = true;
 	}
 
 	//Checking up/down
 	if (checkCollInY)
 	{
-		Rectf boundsCopy{ rfi.bounds };
-		if (addVelToPos)
-			boundsCopy.bottom += rfi.velDist.y;
-		RectCornerTileIndices corners{ GetRectCornerTileIndices(boundsCopy) };
+		Rectf boundsCopy{ bounds };
+		boundsCopy.bottom += velDist.y;
+		RectCornersTileIdx corners{ utils::GetRectCornersTileIdx(boundsCopy, m_TileSize) };
 		int minCol{ corners.leftBottom.c };
 		int maxCol{ corners.rightBottom.c };
-		if (!checkCollInVelDir || ci.vi.down)
-			ci.collDir.down = CheckRowCollision(corners.leftBottom.r, minCol, maxCol);
-		if (!checkCollInVelDir || ci.vi.up)
-			ci.collDir.up = CheckRowCollision(corners.leftTop.r, minCol, maxCol);
-		if (ci.collDir.up || ci.collDir.down)
-			ci.collDir.y = true;
+		if (!checkVelDir || moving.down)
+			collDir.down = CheckRowCollision(corners.leftBottom.r, minCol, maxCol);
+		if (!checkVelDir || moving.up)
+			collDir.up = CheckRowCollision(corners.leftTop.r, minCol, maxCol);
+		if (collDir.up || collDir.down)
+			collDir.y = true;
 	}
 
 	//Checking corners
 	if (checkCollInX && checkCollInY)
 	{
-		Rectf boundsCopy{ rfi.bounds };
-		if (addVelToPos)
-		{
-			boundsCopy.left += rfi.velDist.x;
-			boundsCopy.bottom += rfi.velDist.y;
-		}
-		RectCornerTileIndices corners{ GetRectCornerTileIndices(boundsCopy) };
+		Rectf boundsCopy{ bounds };
+		boundsCopy.left += velDist.x;
+		boundsCopy.bottom += velDist.y;
+		RectCornersTileIdx corners{ utils::GetRectCornersTileIdx(boundsCopy, m_TileSize) };
 		TileIdx cornerInVelDir{
-			(ci.vi.up) ? corners.leftTop.r : corners.leftBottom.r,
-			(ci.vi.right) ? corners.rightBottom.c : corners.leftBottom.c
+			(moving.up) ? corners.leftTop.r : corners.leftBottom.r,
+			(moving.right) ? corners.rightBottom.c : corners.leftBottom.c
 		};
-		if ((!checkCollInVelDir || corners.leftBottom == cornerInVelDir) && GetTileID(corners.leftBottom) == 1)
-			ci.collDir.leftBottom = true;
-		if ((!checkCollInVelDir || corners.leftTop == cornerInVelDir) && GetTileID(corners.leftTop) == 1)
-			ci.collDir.leftTop = true;
-		if ((!checkCollInVelDir || corners.rightTop == cornerInVelDir) && GetTileID(corners.rightTop) == 1)	
-			ci.collDir.rightTop = true;
-		if ((!checkCollInVelDir || corners.rightBottom == cornerInVelDir) && GetTileID(corners.rightBottom) == 1)
-			ci.collDir.rightBottom = true;
-		if (ci.collDir.leftBottom || ci.collDir.leftTop || ci.collDir.rightTop || ci.collDir.rightBottom)
-			ci.collDir.corner = true;
+		if ((!checkVelDir || corners.leftBottom == cornerInVelDir) && GetTileID(corners.leftBottom) == 1)
+			collDir.leftBottom = true;
+		if ((!checkVelDir || corners.leftTop == cornerInVelDir) && GetTileID(corners.leftTop) == 1)
+			collDir.leftTop = true;
+		if ((!checkVelDir || corners.rightTop == cornerInVelDir) && GetTileID(corners.rightTop) == 1)
+			collDir.rightTop = true;
+		if ((!checkVelDir || corners.rightBottom == cornerInVelDir) && GetTileID(corners.rightBottom) == 1)
+			collDir.rightBottom = true;
+		if (collDir.leftBottom || collDir.leftTop || collDir.rightTop || collDir.rightBottom)
+			collDir.corner = true;
 	}
+
+	return collDir;
 }
 
-/*
-Detects if the collision first occured in the x or y direction
-*/
-void Level::SetCornerCollisionInfo(const RectPhysicsInfo& rfi, CollisionInfo& ci) const
+void Level::SetCollDirInfo(const Rectf& bounds, const Vector2f& velDist, CollisionInfo& ci) const
 {
-	const VelInfo& moving{ ci.vi };
-	//Check if rect is flush with the collX or collY boundary
-	bool xAlreadyColliding{ rfi.bounds.left == ci.collPos.x }; //Flush with wall left/right
-	bool yAlreadyColliding{ rfi.bounds.bottom == ci.collPos.y }; //Flush with ground/ceiling
-
-	float entryDistX{ (moving.right) ? ci.entryDistRight : ci.entryDistLeft };
-	float entryDistY{ (moving.up) ? ci.entryDistUp : ci.entryDistDown };
-
-	float velPercentageX{ -std::numeric_limits<float>::infinity() };
-	float velPercentageY{ -std::numeric_limits<float>::infinity() };
-	//Find time of collision for each axis, if statement prevents divide by zero
-	if (moving.inX && !yAlreadyColliding)
-		velPercentageX = entryDistX / std::abs(rfi.velDist.x);
-	if (moving.inY && !xAlreadyColliding)
-		velPercentageY = entryDistY / std::abs(rfi.velDist.y);
-
-	//Shouldn't happen !!! Dist entered in x or y should always be between 0 and 1
-	if (velPercentageX < 0.f && velPercentageY < 0.f)
+	RectCornersTileIdx corners{ utils::GetRectCornersTileIdx(bounds, m_TileSize) };
+	//Calculate collision position and entryDist if collision happened in a direction
+	if (ci.collDir.left || ci.collDir.leftBottom || ci.collDir.leftTop)
 	{
-		std::cout << "Unhandled collision" << std::endl;
-		return;
+		ci.left.collPos = float((corners.leftBottom.c + 1) * m_TileSize);
+		ci.left.entryDist = ci.left.collPos - bounds.left;
+		ci.left.lambda = std::min(ci.left.entryDist / std::abs(velDist.x), 1.f);
+	}
+	if (ci.collDir.right || ci.collDir.rightBottom || ci.collDir.rightTop)
+	{
+		ci.right.collPos = float(corners.rightBottom.c * m_TileSize);
+		ci.right.entryDist = bounds.left + bounds.width - ci.right.collPos;
+		ci.right.lambda = std::min(ci.right.entryDist / std::abs(velDist.x), 1.f);
+	}
+	if (ci.collDir.up || ci.collDir.leftTop || ci.collDir.rightTop)
+	{
+		ci.up.collPos = float(corners.leftTop.r * m_TileSize);
+		ci.up.entryDist = bounds.bottom + bounds.height - ci.up.collPos;
+		ci.up.lambda = std::min(ci.up.entryDist / std::abs(velDist.y), 1.f);
+	}
+	if (ci.collDir.down || ci.collDir.leftBottom || ci.collDir.rightBottom)
+	{
+		ci.down.collPos = float((corners.leftBottom.r + 1) * m_TileSize);
+		ci.down.entryDist = ci.down.collPos - bounds.bottom;
+		ci.down.lambda = std::min(ci.down.entryDist / std::abs(velDist.y), 1.f);
 	}
 
-	//Find the earliest times of collision
-	if (velPercentageX > 0.f && velPercentageY < 0.f) //Pure x collision
-		ci.collDir.x = true;
-	else if (velPercentageY > 0.f && velPercentageX < 0.f) //Pure y collision
-		ci.collDir.y = true;
-	else if (velPercentageY <= velPercentageX) //Collision first happened in y
-		ci.collDir.y = true;
-	else //Collision first happended in x
-		ci.collDir.x = true;
-}
-
-void Level::CollisionResponse(RectPhysicsInfo& rfi, CollisionInfo& ci) const
-{
-	bool correctXPos{}, correctYPos{};
-	if (ci.collDir.corner && !ci.collDir.x && !ci.collDir.y) //Convex corner collision
+	///* If the input rect is moving annd it collided only with a corner,
+	//detect which axis collided first */
+	if (ci.vIn.inX && ci.vIn.inY && ci.collDir.corner && !ci.collDir.x && !ci.collDir.y) //Convex corner collision
 	{
-		SetCornerCollisionInfo(rfi, ci);
-		if (ci.collDir.x) // x collided first
-			correctXPos = true;
-		else // y collided first
-			correctYPos = true;
+		float lambdaX{ (ci.vIn.right) ? ci.right.lambda : ci.left.lambda };
+		float lambdaY{ (ci.vIn.up) ? ci.up.lambda : ci.down.lambda };
+		if (lambdaY <= lambdaX && lambdaY > 0.f)
+		{
+			ci.collDir.y = true;
+			ci.collDir.up = ci.vIn.up;
+			ci.collDir.down = ci.vIn.down;
+		}
+		else if (lambdaX < lambdaY && lambdaX > 0.f)//lambdaX > lambdaY
+		{
+			ci.collDir.x = true;
+			ci.collDir.left = ci.vIn.left;
+			ci.collDir.right = ci.vIn.right;
+		}
 	}
-	else if (ci.collDir.x && !ci.collDir.y) //Wall collision
-		correctXPos = true;
-	else if (ci.collDir.y && !ci.collDir.x) //Ground/ceiling collision
-		correctYPos = true;
-	else if (ci.collDir.x && ci.collDir.y) //Concave corner collision
-	{
-		correctXPos = true;
-		correctYPos = true;
-	}
-
-	//Update input bounds x position and vel
-	if (correctXPos)
-	{
-		rfi.bounds.left = ci.collPos.x - rfi.bounds.width * int(ci.vi.right);
-		rfi.vel.x = 0.f;
-	}
-	else
-		rfi.bounds.left += rfi.velDist.x;
-
-	//Update input bounds y position and vel
-	if (correctYPos)
-	{
-		rfi.bounds.bottom = ci.collPos.y - rfi.bounds.height * int(ci.vi.up);
-		rfi.vel.y = 0.f;
-	}
-	else
-		rfi.bounds.bottom += rfi.velDist.y;
 }

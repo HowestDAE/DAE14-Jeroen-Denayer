@@ -14,8 +14,7 @@ Madeline::Madeline(int spawnRow, int spawnCol, float width, float height, const 
 	, m_Acc{ Vector2f{} }
 	, m_AllowDirChangeX{}
 	, m_AllowDirChangeY{}
-	, m_RMCAX{ RMCAInfo{true} }
-	, m_RMCAY{ RMCAInfo{true} }
+	, m_AllowDirChangeDirOverride{ Vector2i{} }
 	//Movement parameters
 	, m_GroundJumpHeight{ data.groundJumpHeight }
 	, m_GroundJumpTime{ data.groundJumpTime }
@@ -53,9 +52,6 @@ void Madeline::Draw() const
 
 void Madeline::Update(float dt, Vector2i inputDir, const std::vector<Action>& actions)
 {
-	//Check input actions
-	//m_MovementDir = inputDir;
-
 	State prevState{ m_State };
 	m_HoldingJump = ContainsAction(actions, Action::Jumping);
 	m_HoldingGrab = ContainsAction(actions, Action::Grabbing);
@@ -64,56 +60,41 @@ void Madeline::Update(float dt, Vector2i inputDir, const std::vector<Action>& ac
 	std::cout << "State: " << m_StateNames[int(m_State)] << std::endl;
 
 	if (m_State != prevState)
-		SetTargetVelByState();
+		SetMaxVelByState();
 
-	//If the dir changed always flip acceleration
-	//Example: dir goes from -1 to 0 or 1, in both cases acc needs to be flipped
+	//Update maxVel and acc according to input if allowed
 	if (m_AllowDirChangeX && m_MovementDir.x != inputDir.x)
 		SetMaximumVelAndAccByDir(inputDir.x, Axis::X);
 	if (m_AllowDirChangeY && m_MovementDir.y != inputDir.y)
 		SetMaximumVelAndAccByDir(inputDir.y, Axis::Y);
 
-	//std::cout << m_MaxVel.x << " ," << m_Acc.x << std::endl;
-	/* Update the vel, this can happen in 2 ways
-	1) Going through a fixed predefined motion using an RMCA
-	2) Accelerate towards the targetVel */
-	if (!m_RMCAX.completed)
-		UpdateVelUsingRMCA(dt, true, m_Vel.x, m_RMCAX);
-	else if (m_Vel.x != m_MaxVel.x)
+	//Move vel towards maxVel using acc
+	if (m_Vel.x != m_MaxVel.x)
 		UpdateVelUsingAcc(dt, Axis::X);
-
-	if (!m_RMCAY.completed)
-		UpdateVelUsingRMCA(dt, m_HoldingJump, m_Vel.y, m_RMCAY);
-	else if (m_Vel.y != m_MaxVel.y)
+	if (m_Vel.y != m_MaxVel.y)
 		UpdateVelUsingAcc(dt, Axis::Y);
-
-	float velDistX{ m_Vel.x * GameData::PIX_PER_M() * dt };
-	float velDistY{ m_Vel.y * GameData::PIX_PER_M() * dt };
-	Vector2f velDist{ velDistX, velDistY };
 
 	/* TO-DO: collision detection only checks the tiles in front of the player,
 	if deltaTime/velDist is really big multiple collision tiles could be skipped over
 	Can test this by holding and dragging the window a bit, no update will happen and dt will
 	get really big */
-	Level::RectPhysicsInfo collisionRFI{ m_Bounds, m_Vel, velDist };
-	Level::CollisionInfo ci{ GameData::ActiveLvl()->MovePhysicsRect(collisionRFI) };
+	CollisionInfo ci{ GameData::ActiveLvl()->MovePhysicsRect(m_Bounds, m_Vel, dt) };
 
 	//Wall detection with wider bounds to detect wall collision within a certain distance
-	Rectf wallDetectionBounds{ m_Bounds.left - m_MaxDistFromWallToWallJump, m_Bounds.bottom, m_Bounds.width + 2 * m_MaxDistFromWallToWallJump, m_Bounds.height };
-	const Level::RectPhysicsInfo wallDetectionRFI{ wallDetectionBounds, m_Vel, velDist};
-	Level::CollisionInfo wallDetectionCI{ GameData::ActiveLvl()->DetectCollision(wallDetectionRFI, false, true, false, false) };
+	Rectf wallDetectionBounds{ m_Bounds.left - m_MaxDistFromWallToWallJump, m_Bounds.bottom + m_Bounds.height / 2, m_Bounds.width + 2 * m_MaxDistFromWallToWallJump, m_Bounds.height / 2 };
+	CollisionInfo wallDetectionCI{ GameData::ActiveLvl()->DetectRectCollision(wallDetectionBounds, true, false) };
 
 	//Update state bools
 	m_OnGround = m_Vel.y <= 0.f && ci.collDir.down;
-	//m_AgainstLeftWall = wallDetectionCI.collDir.left;
 	m_AgainstWall = wallDetectionCI.collDir.x;
 	m_AgainstRightWall = m_AgainstWall && wallDetectionCI.collDir.right;
+	//m_AgainstLeftWall = wallDetectionCI.collDir.left;
 	if (m_AgainstWall)
 	{
 		if (m_AgainstRightWall)
-			m_DistFromWall = m_MaxDistFromWallToWallJump - wallDetectionCI.entryDistRight;
+			m_DistFromWall = m_MaxDistFromWallToWallJump - wallDetectionCI.right.entryDist;
 		else
-			m_DistFromWall = m_MaxDistFromWallToWallJump - wallDetectionCI.entryDistLeft;
+			m_DistFromWall = m_MaxDistFromWallToWallJump - wallDetectionCI.left.entryDist;
 	}
 	else m_DistFromWall = m_MaxDistFromWallToWallJump + 1;
 
@@ -133,7 +114,19 @@ void Madeline::SetPosition(const Point2f& pos)
 
 void Madeline::SetState(const Vector2i& inputDir, const std::vector<Action>& actions)
 {
-	if (m_CanJump && m_HoldingJump) //Start a specific jump
+	if (m_Jumping)
+		if (m_HoldingJump)
+			if ((m_State == State::WallJumping ||
+				m_State == State::WallNeutralJumping ||
+				m_State == State::WallHopping) &&
+				(inputDir.x == m_AllowDirChangeDirOverride.x ||
+				m_Vel.x == m_MaxVel.x)) //Transition to normal jump
+				m_State = State::Jumping;
+			else
+				return; //jump is still controlled so keep current state/specific jump
+		else
+			m_State = State::EndingJump;
+	else if (m_CanJump && m_HoldingJump) //Start a specific jump
 	{
 		ActivateJump();
 		if (m_DistFromWall == 0.f && m_HoldingGrab) //Grabbing a wall
@@ -144,13 +137,6 @@ void Madeline::SetState(const Vector2i& inputDir, const std::vector<Action>& act
 			m_State = State::WallNeutralJumping;
 		else //Close to a wall and moving left/right
 			m_State = State::WallJumping;
-	}
-	else if (m_Jumping) //Still jumping
-	{
-		if (m_RMCAY.completed) //Jump is not controlled anymore
-			m_State = State::EndingJump;
-		else //jump is still controlled so keep current state/specific jump
-			return;
 	}
 	else if (m_DistFromWall == 0.f && m_HoldingGrab) //Against the wall and grabbing
 	{
@@ -171,112 +157,142 @@ void Madeline::SetState(const Vector2i& inputDir, const std::vector<Action>& act
 		m_State = State::Idle;
 }
 
-void Madeline::SetTargetVelByState()
+void Madeline::SetMaxVelByState()
 {
 	switch (m_State)
 	{
 	case State::Idle:
-		SetMaximumVel(0.f, false, Axis::X);
-		SetMaximumVel(m_MaxFallSpeed, false, Axis::Y, false, 0.f, GameData::G());
+	{
+		float accX{ m_RunningSpeed / 0.1f };
+		SetMovementParameters(Axis::X, m_Vel.x, 0.f, 0.f, accX, false);
+		SetMovementParameters(Axis::Y, m_Vel.y, m_MaxFallSpeed, 0.f, GameData::G(), false);
 		break;
+	}
 	case State::Running:
-		SetMaximumVel(m_RunningSpeed, true, Axis::X, false, 0.1f);
-		SetMaximumVel(m_MaxFallSpeed, false, Axis::Y, false, 0.f, GameData::G());
+	{
+		float accX{ m_RunningSpeed / 0.1f };
+		SetMovementParameters(Axis::X, m_Vel.x, m_RunningSpeed, 0.f, accX, true);
+		SetMovementParameters(Axis::Y, m_Vel.y, m_MaxFallSpeed, 0.f, GameData::G(), false);
 		break;
+	}
+	case State::Jumping:
+	{
+		float accX{ m_RunningSpeed / 0.1f };
+		SetMovementParameters(Axis::X, m_Vel.x, m_RunningSpeed, 0.f, accX, true);
+		SetMovementParameters(Axis::Y, m_Vel.y, 0.f, 0.f, GameData::G(), false);
+		break;
+	}
 	case State::EndingJump:
-		SetMaximumVel(m_RunningSpeed, true, Axis::X, false, 0.1f);
-		SetMaximumVel(0.f, false, Axis::Y, false, 0.f, GameData::G() * 2);
+	{
+		float accX{ m_RunningSpeed / 0.1f };
+		SetMovementParameters(Axis::X, m_Vel.x, m_RunningSpeed, 0.f, accX, true);
+		SetMovementParameters(Axis::Y, m_Vel.y, 0.f, 0.f, GameData::G() * 2, false);
 		break;
+	}
 	case State::GroundJumping:
-		SetMaximumVel(m_RunningSpeed, true, Axis::X, false, 0.1f);
-		SetRMCAParameters(m_GroundJumpHeight, m_GroundJumpTime, 1, m_RMCAY);
+	{
+		float accX{ m_RunningSpeed / 0.1f };
+		SetMovementParameters(Axis::X, m_Vel.x, m_RunningSpeed, 0.f, accX, true);
+		AccAndVel accAndVelY{ utils::AccAndVelToTravelDistInTime(m_GroundJumpHeight, m_GroundJumpTime) };
+		SetMovementParameters(Axis::Y, accAndVelY.vel, 0.f, 0.f, GameData::G(), false);
 		break;
+	}
 	case State::WallJumping:
 	{
-		float wallNormalX{ (m_AgainstRightWall) ? -1.f : 1.f };
-		SetRMCAParameters(m_WallJumpDistX, m_WallJumpDistXTime, wallNormalX, m_RMCAX);
-		SetRMCAParameters(m_GroundJumpHeight, m_GroundJumpTime, 1, m_RMCAY);
+		int wallNormalX{ (m_AgainstRightWall) ? -1 : 1 };
+		AccAndVel accAndVelX{ utils::AccAndVelToTravelDistInTime(m_WallJumpDistX, m_WallJumpDistXTime) };
+		SetMovementParameters(Axis::X, wallNormalX * accAndVelX.vel, 0.f, 0.f, -wallNormalX * accAndVelX.acc, false, wallNormalX);
+		AccAndVel accAndVelY{ utils::AccAndVelToTravelDistInTime(m_GroundJumpHeight, m_GroundJumpTime) };
+		SetMovementParameters(Axis::Y, accAndVelY.vel, 0.f, 0.f, GameData::G(), false);
 		break;
 	}
 	case State::WallHopping:
-		SetMaximumVel(m_RunningSpeed, true, Axis::X, false, 0.1f);
-		SetRMCAParameters(m_GroundJumpHeight, m_GroundJumpTime, 1.f, m_RMCAY);
+	{
+		int wallNormalX{ (m_AgainstRightWall) ? -1 : 1 };
+		float accX{ m_RunningSpeed / 0.1f };
+		SetMovementParameters(Axis::X, 0.f, 0.f, 0.f, 0.f, false, wallNormalX);
+		//SetMovementParameters(Axis::X, m_Vel.x, m_RunningSpeed, 0.f, accX, true);
+		AccAndVel accAndVelY{ utils::AccAndVelToTravelDistInTime(m_GroundJumpHeight, m_GroundJumpTime) };
+		SetMovementParameters(Axis::Y, accAndVelY.vel, 0.f, 0.f, GameData::G(), false);
 		break;
+	}
 	case State::WallNeutralJumping:
 	{
-		float wallNormalX{ (m_AgainstRightWall) ? -1.f : 1.f };
-		SetRMCAParameters(m_WallNeutralJumpDistX, m_WallNeutralJumpDistXTime, wallNormalX, m_RMCAX);
-		SetRMCAParameters(m_GroundJumpHeight, m_GroundJumpTime, 1, m_RMCAY);
+		int wallNormalX{ (m_AgainstRightWall) ? -1 : 1 };
+		AccAndVel accAndVelX{ utils::AccAndVelToTravelDistInTime(m_WallNeutralJumpDistX, m_WallNeutralJumpDistXTime) };
+		SetMovementParameters(Axis::X, wallNormalX * accAndVelX.vel, 0.f, 0.f, -wallNormalX * accAndVelX.acc, false, wallNormalX);
+		AccAndVel accAndVelY{ utils::AccAndVelToTravelDistInTime(m_GroundJumpHeight, m_GroundJumpTime) };
+		SetMovementParameters(Axis::Y, accAndVelY.vel, 0.f, 0.f, GameData::G(), false);
 		break;
 	}
 	case State::Falling:
-		SetMaximumVel(m_RunningSpeed, true, Axis::X, false, 0.1f);
-		SetMaximumVel(m_MaxFallSpeed, false, Axis::Y, false, 0.f, GameData::G());
+	{
+		float accX{ m_RunningSpeed / 0.1f };
+		SetMovementParameters(Axis::X, m_Vel.x, m_RunningSpeed, 0.f, accX, true);
+		SetMovementParameters(Axis::Y, m_Vel.y, m_MaxFallSpeed, 0.f, GameData::G(), false);
 		break;
+	}
 	case State::Crouching:
-		SetMaximumVel(0.f, false, Axis::X);
-		SetMaximumVel(m_MaxFallSpeed, false, Axis::Y, false, 0.f, GameData::G());
+	{
+		float accX{ m_RunningSpeed / 0.1f };
+		SetMovementParameters(Axis::X, m_Vel.x, 0.f, 0.f, accX, false);
+		SetMovementParameters(Axis::Y, m_Vel.y, m_MaxFallSpeed, 0.f, GameData::G(), false);
 		break;
+	}
 	case State::WallGrabbing:
-		SetMaximumVel(0.f, false, Axis::X);
-		SetMaximumVel(0.f, false, Axis::Y);
+	{
+		SetMovementParameters(Axis::X, m_Vel.x, 0.f, 0.f, 0.f, false);
+		float accY{ m_MaxFallSpeed / 0.1f };
+		SetMovementParameters(Axis::Y, m_Vel.y, 0.f, 0.f, accY, false);
 		break;
+	}
 	case State::WallClimbing:
-		SetMaximumVel(0.f, false, Axis::X);
-		SetMaximumVel(m_WallClimbingSpeed, false, Axis::Y, false, 0.1f, 0.f);
+	{
+		SetMovementParameters(Axis::X, m_Vel.x, 0.f, 0.f, 0.f, false);
+		float accY{ m_WallClimbingSpeed / 0.1f };
+		if (m_Vel.y > 0)
+			accY = 0.f;
+		SetMovementParameters(Axis::Y, m_Vel.y, m_WallClimbingSpeed, 0.f, accY, false);
 		break;
+	}
 	case State::WallSliding:
-		SetMaximumVel(0.f, false, Axis::X);
-		SetMaximumVel(m_WallSlidingSpeed, false, Axis::Y, false, 0.1f, 0.f);
+	{
+		SetMovementParameters(Axis::X, m_Vel.x, 0.f, 0.f, 0.f, false);
+		float accY{ m_WallSlidingSpeed / 0.1f };
+		SetMovementParameters(Axis::Y, m_Vel.y, m_WallSlidingSpeed, 0.f, accY, false);
 		break;
+	}
 	}
 }
 
-void Madeline::SetMaximumVel(float maxVel, bool allowDirChange, Axis axis, bool setVelImmediatly, float time, float accOverride)
+void Madeline::SetMovementParameters(Axis axis, float initVel, float maxVel, float time, float accOverride, bool allowDirChange, int allowDirChangeDirOverride)
 {
+	float& velRef{ (axis == Axis::X) ? m_Vel.x : m_Vel.y };
 	float& maxVelRef{ (axis == Axis::X) ? m_MaxVel.x : m_MaxVel.y };
 	bool& allowDirChangeRef{ (axis == Axis::X) ? m_AllowDirChangeX : m_AllowDirChangeY };
-	int& movementDirRef{ (axis == Axis::X) ? m_MovementDir.x : m_MovementDir.y };
-	float& velRef{ (axis == Axis::X) ? m_Vel.x : m_Vel.y };
 	float& accRef{ (axis == Axis::X) ? m_Acc.x : m_Acc.y };
+	int& movementDirRef{ (axis == Axis::X) ? m_MovementDir.x : m_MovementDir.y };
+	int& allowDirChangeDirOverrideRef{ (axis == Axis::X) ? m_AllowDirChangeDirOverride.x : m_AllowDirChangeDirOverride.y };
 
+	velRef = initVel;
 	maxVelRef = maxVel;
-	if (setVelImmediatly)
-		velRef = maxVelRef;
-
 	allowDirChangeRef = allowDirChange;
-	//Set direction based on velocity and accOverride
-	if (maxVelRef > 0.f)
-		movementDirRef = 1;
-	else if (maxVelRef < 0.f)
-		movementDirRef = -1;
-	else if (accOverride == 0.f)
-		movementDirRef = 0;
-	else if (accOverride > 0.f)
-		movementDirRef = 1;
-	else //accOverride < 0.f
-		movementDirRef = -1;
+	allowDirChangeDirOverrideRef = allowDirChangeDirOverride;
 
-	//Set the acceleration needed to reach maxVel in time
-	if (maxVelRef == 0.f && accOverride == 0.f && time == 0.f)
-	{
+	if (accOverride != 0)
+		accRef = accOverride;
+	else if (time != 0)
+		accRef = (maxVel - initVel) / time; // a = deltaV/t
+	else //No idea how to get from initVel to targetVel by given acc or time so immediatly set vel to targetVel
 		velRef = maxVelRef;
-		accRef = 0.f;
-	}
-	else if (accOverride != 0.f)
-		accRef = movementDirRef * std::abs(accOverride);
-	else if (time != 0.f)
-		accRef = maxVelRef / time; // a = v/t
-}
 
-void Madeline::SetRMCAParameters(float dist, float time, int dir, RMCAInfo& RMCAInfo)
-{
-	AccAndVel accAndVelX{ utils::AccAndVelToTravelDistInTime(dist, time) };
-	RMCAInfo.completed = false;
-	RMCAInfo.initVel = dir * accAndVelX.vel;
-	RMCAInfo.deceleration = -dir * accAndVelX.acc;
-	RMCAInfo.time = time;
-	RMCAInfo.percentage = 0.f;
+	//Set direction based on acceleration
+	if (accRef > 0.f)
+		movementDirRef = 1;
+	else if (accRef < 0.f)
+		movementDirRef = -1;
+	else
+		movementDirRef = 0;
 }
 
 void Madeline::UpdateVelUsingAcc(float dt, Axis axis)
@@ -287,27 +303,9 @@ void Madeline::UpdateVelUsingAcc(float dt, Axis axis)
 	float& accRef{ (axis == Axis::X) ? m_Acc.x : m_Acc.y };
 
 	velRef += accRef * dt;
-	if (movementDirRef == 0 && ((accRef > 0 && velRef > 0.f) || (accRef < 0 && velRef < 0.f)))
-		velRef = 0.f;
-	else if ((movementDirRef > 0 && velRef > maxVelRef) || (movementDirRef < 0 && velRef < maxVelRef))
-		velRef = maxVelRef;
-}
-
-void Madeline::UpdateVelUsingRMCA(float dt, bool condition, float& vel, RMCAInfo& RMCAInfo)
-{
-	//Set initial velocity at start of RMCA
-	if (RMCAInfo.percentage == 0.f)
-		vel = RMCAInfo.initVel;
-
-	float prevPercentage{ RMCAInfo.percentage };
-	RMCAInfo.percentage += dt / RMCAInfo.time;
-	if (RMCAInfo.percentage > 1.f)
-		RMCAInfo.percentage = 1.f;
-	float deltaPercentage{ RMCAInfo.percentage - prevPercentage };
-	vel += RMCAInfo.deceleration * (deltaPercentage * RMCAInfo.time);
-
-	if (!condition || RMCAInfo.percentage == 1.f) //completed RMCA movement
-		RMCAInfo.completed = true;
+	float targetVel{ movementDirRef * std::abs(maxVelRef) };
+	if ((accRef > 0.f && velRef > targetVel) || (accRef < 0.f && velRef < targetVel))
+		velRef = targetVel;
 }
 
 void Madeline::SetMaximumVelAndAccByDir(int inputDir, Axis axis)

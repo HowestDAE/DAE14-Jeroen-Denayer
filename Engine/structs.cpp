@@ -96,7 +96,7 @@ Ellipsef::Ellipsef( float centerX, float centerY, float radiusX, float radiusY )
 {
 }
 
-bool TileIdx::operator==(const TileIdx& rhs)
+bool operator==(const TileIdx& lhs, const TileIdx& rhs)
 {
-	return this->r == rhs.r && this->c == rhs.c;
+	return lhs.r == rhs.r && lhs.c == rhs.c;
 }
