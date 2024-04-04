@@ -25,8 +25,8 @@ public:
 	static float	SCREEN_HEIGHT();
 	static float	RENDER_RES_X();
 	static float	RENDER_RES_Y();
-	static float	RES_SCALE();
-	static int		TILE_SIZE_PIX_SCALED();
+	static float	RES_SCALE_X();
+	static float	RES_SCALE_Y();
 	static int		PIX_PER_M();
 	static const Level*	ActiveLvl();
 private:
@@ -42,8 +42,8 @@ private:
 	float	m_SCREEN_HEIGHT;
 	float	m_RENDER_RES_X;
 	float	m_RENDER_RES_Y;
-	float	m_RES_SCALE;
-	int		m_TILE_SIZE_PIX_SCALED;
+	float	m_RES_SCALE_X;
+	float	m_RES_SCALE_Y;
 	int		m_PIX_PER_M;
 	Level* m_pActiveLvl;
 };

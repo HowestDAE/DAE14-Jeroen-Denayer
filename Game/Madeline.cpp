@@ -1,13 +1,12 @@
 #include "pch.h"
 #include "Madeline.h"
 #include "Level.h"
-#include <algorithm>
-#include <limits>
-#include "GameData.h"
+#include "Game.h"
 
-Madeline::Madeline(int spawnRow, int spawnCol, float width, float height, const MadelineData& data)
-	: m_State{ State::Idle }
-	, m_Bounds{ Rectf{float(spawnCol * GameData::TILE_SIZE_PIX()), float(spawnRow * GameData::TILE_SIZE_PIX()), width, height} }
+Madeline::Madeline(Point2f pos, float width, float height, const MadelineData& data, Level* pLevel)
+	: m_pLevel{ pLevel }
+	, m_State{ State::Idle }
+	, m_Bounds{ Rectf{pos.x, pos.y, width, height} }
 	, m_MovementDir{ Vector2i{} }
 	, m_Vel{ Vector2f{} }
 	, m_MaxVel{ Vector2f{} }
@@ -27,6 +26,8 @@ Madeline::Madeline(int spawnRow, int spawnCol, float width, float height, const 
 	, m_WallClimbingSpeed{ data.wallClimbingSpeed }
 	, m_WallSlidingSpeed{ data.wallSlidingSpeed }
 	, m_MaxDistFromWallToWallJump{ data.maxDistFromWallToWallJump }
+	, m_DashDist{ data.dashDist }
+	, m_DashDistTime{ data.dashDistTime }
 	//State parameters
 	, m_OnGround{}
 	, m_CanJump{}
@@ -35,10 +36,16 @@ Madeline::Madeline(int spawnRow, int spawnCol, float width, float height, const 
 	, m_AgainstRightWall{}
 	, m_AgainstLeftWall{}
 	, m_DistFromWall{}
+	, m_CanDash{}
+	, m_Dashing{}
 	//Input
 	, m_HoldingJump{}
-	, m_HoldingGrab{}
 {
+}
+
+Madeline::~Madeline()
+{
+	m_pLevel = nullptr;
 }
 
 void Madeline::Draw() const
@@ -50,23 +57,22 @@ void Madeline::Draw() const
 	//DrawCollision();
 }
 
-void Madeline::Update(float dt, Vector2i inputDir, const std::vector<Action>& actions)
+void Madeline::Update(float dt, const Game::InputActions& input)
 {
 	State prevState{ m_State };
-	m_HoldingJump = ContainsAction(actions, Action::Jumping);
-	m_HoldingGrab = ContainsAction(actions, Action::Grabbing);
+	m_HoldingJump = input.jumping;
 
-	SetState(inputDir, actions);
-	std::cout << "State: " << m_StateNames[int(m_State)] << std::endl;
+	SetState(input);
+	//std::cout << "State: " << m_StateNames[int(m_State)] << std::endl;
 
 	if (m_State != prevState)
-		SetMaxVelByState();
+		SetMaxVelByState(input);
 
 	//Update maxVel and acc according to input if allowed
-	if (m_AllowDirChangeX && m_MovementDir.x != inputDir.x)
-		SetMaximumVelAndAccByDir(inputDir.x, Axis::X);
-	if (m_AllowDirChangeY && m_MovementDir.y != inputDir.y)
-		SetMaximumVelAndAccByDir(inputDir.y, Axis::Y);
+	if (m_AllowDirChangeX && m_MovementDir.x != input.dir.x)
+		SetMaximumVelAndAccByDir(input.dir.x, Axis::X);
+	if (m_AllowDirChangeY && m_MovementDir.y != input.dir.y)
+		SetMaximumVelAndAccByDir(input.dir.y, Axis::Y);
 
 	//Move vel towards maxVel using acc
 	if (m_Vel.x != m_MaxVel.x)
@@ -78,11 +84,11 @@ void Madeline::Update(float dt, Vector2i inputDir, const std::vector<Action>& ac
 	if deltaTime/velDist is really big multiple collision tiles could be skipped over
 	Can test this by holding and dragging the window a bit, no update will happen and dt will
 	get really big */
-	CollisionInfo ci{ GameData::ActiveLvl()->MovePhysicsRect(m_Bounds, m_Vel, dt) };
+	CollisionInfo ci{ m_pLevel->MovePhysicsRect(m_Bounds, m_Vel, dt) };
 
 	//Wall detection with wider bounds to detect wall collision within a certain distance
-	Rectf wallDetectionBounds{ m_Bounds.left - m_MaxDistFromWallToWallJump, m_Bounds.bottom + m_Bounds.height / 2, m_Bounds.width + 2 * m_MaxDistFromWallToWallJump, m_Bounds.height / 2 };
-	CollisionInfo wallDetectionCI{ GameData::ActiveLvl()->DetectRectCollision(wallDetectionBounds, true, false) };
+	Rectf wallDetectionBounds{ m_Bounds.left - m_MaxDistFromWallToWallJump, m_Bounds.bottom + m_Bounds.height / 3, m_Bounds.width + 2 * m_MaxDistFromWallToWallJump, m_Bounds.height / 3 };
+	CollisionInfo wallDetectionCI{ m_pLevel->DetectRectCollision(wallDetectionBounds, true, false) };
 
 	//Update state bools
 	m_OnGround = m_Vel.y <= 0.f && ci.collDir.down;
@@ -101,6 +107,9 @@ void Madeline::Update(float dt, Vector2i inputDir, const std::vector<Action>& ac
 	m_CanJump = !m_HoldingJump && (m_OnGround || m_AgainstWall);
 	if (m_Jumping && (m_Vel.y <= 0.f || m_OnGround))
 		m_Jumping = false;
+	m_CanDash = !input.dashing && m_OnGround;
+	if (m_Dashing && m_Vel.x == m_MaxVel.x && m_Vel.y == m_MaxVel.y)
+		m_Dashing = false;
 }
 
 /*
@@ -112,44 +121,55 @@ void Madeline::SetPosition(const Point2f& pos)
 	m_Bounds.bottom = pos.y;
 }
 
-void Madeline::SetState(const Vector2i& inputDir, const std::vector<Action>& actions)
+void Madeline::SetState(const Game::InputActions& input)
 {
-	if (m_Jumping)
+	if (m_Dashing) //continue dash
+		return; 
+	else if (m_CanDash && input.dashing)
+	{
+		m_CanDash = false;
+		m_Dashing = true;
+		m_State = State::Dashing;
+	}
+	else if (m_Jumping)
+	{
 		if (m_HoldingJump)
 			if ((m_State == State::WallJumping ||
 				m_State == State::WallNeutralJumping ||
 				m_State == State::WallHopping) &&
-				(inputDir.x == m_AllowDirChangeDirOverride.x ||
-				m_Vel.x == m_MaxVel.x)) //Transition to normal jump
+				(input.dir.x == m_AllowDirChangeDirOverride.x ||
+					m_Vel.x == m_MaxVel.x)) //Transition to normal jump
 				m_State = State::Jumping;
 			else
 				return; //jump is still controlled so keep current state/specific jump
 		else
 			m_State = State::EndingJump;
+	}
 	else if (m_CanJump && m_HoldingJump) //Start a specific jump
 	{
-		ActivateJump();
-		if (m_DistFromWall == 0.f && m_HoldingGrab) //Grabbing a wall
+		m_Jumping = true;
+		m_CanJump = false;
+		if (m_DistFromWall == 0.f && input.grabbing) //Grabbing a wall
 			m_State = State::WallHopping;
 		else if (m_OnGround) //Normal ground jump
 			m_State = State::GroundJumping;
-		else if (inputDir.x == 0) //Close to a wall and not moving left/right
+		else if (input.dir.x == 0) //Close to a wall and not moving left/right
 			m_State = State::WallNeutralJumping;
 		else //Close to a wall and moving left/right
 			m_State = State::WallJumping;
 	}
-	else if (m_DistFromWall == 0.f && m_HoldingGrab) //Against the wall and grabbing
+	else if (m_DistFromWall == 0.f && input.grabbing) //Against the wall and grabbing
 	{
-		if (inputDir.y == 0) //Not moving up/down
+		if (input.dir.y == 0) //Not moving up/down
 			m_State = State::WallGrabbing;
-		else if (inputDir.y > 0)//Climbing up a wall
+		else if (input.dir.y > 0)//Climbing up a wall
 			m_State = State::WallClimbing;
 		else //Sliding down a wall
 			m_State = State::WallSliding;
 	}
-	else if (m_OnGround && inputDir.x == 0 && inputDir.y < 0)
+	else if (m_OnGround && input.dir.x == 0 && input.dir.y < 0)
 		m_State = State::Crouching;
-	else if (m_OnGround && inputDir.x != 0)
+	else if (m_OnGround && input.dir.x != 0)
 		m_State = State::Running;
 	else if (!m_OnGround && !m_Jumping)
 		m_State = State::Falling;
@@ -157,7 +177,7 @@ void Madeline::SetState(const Vector2i& inputDir, const std::vector<Action>& act
 		m_State = State::Idle;
 }
 
-void Madeline::SetMaxVelByState()
+void Madeline::SetMaxVelByState(const Game::InputActions& input)
 {
 	switch (m_State)
 	{
@@ -165,28 +185,32 @@ void Madeline::SetMaxVelByState()
 	{
 		float accX{ m_RunningSpeed / 0.1f };
 		SetMovementParameters(Axis::X, m_Vel.x, 0.f, 0.f, accX, false);
-		SetMovementParameters(Axis::Y, m_Vel.y, m_MaxFallSpeed, 0.f, GameData::G(), false);
+		AccAndVel accAndVelY{ utils::AccAndVelToTravelDistInTime(m_GroundJumpHeight, m_GroundJumpTime) };
+		SetMovementParameters(Axis::Y, m_Vel.y, m_MaxFallSpeed, 0.f, -accAndVelY.acc, false);
 		break;
 	}
 	case State::Running:
 	{
 		float accX{ m_RunningSpeed / 0.1f };
 		SetMovementParameters(Axis::X, m_Vel.x, m_RunningSpeed, 0.f, accX, true);
-		SetMovementParameters(Axis::Y, m_Vel.y, m_MaxFallSpeed, 0.f, GameData::G(), false);
+		AccAndVel accAndVelY{ utils::AccAndVelToTravelDistInTime(m_GroundJumpHeight, m_GroundJumpTime) };
+		SetMovementParameters(Axis::Y, m_Vel.y, m_MaxFallSpeed, 0.f, -accAndVelY.acc, false);
 		break;
 	}
 	case State::Jumping:
 	{
 		float accX{ m_RunningSpeed / 0.1f };
 		SetMovementParameters(Axis::X, m_Vel.x, m_RunningSpeed, 0.f, accX, true);
-		SetMovementParameters(Axis::Y, m_Vel.y, 0.f, 0.f, GameData::G(), false);
+		AccAndVel accAndVelY{ utils::AccAndVelToTravelDistInTime(m_GroundJumpHeight, m_GroundJumpTime) };
+		SetMovementParameters(Axis::Y, m_Vel.y, 0.f, 0.f, -accAndVelY.acc, false);
 		break;
 	}
 	case State::EndingJump:
 	{
 		float accX{ m_RunningSpeed / 0.1f };
 		SetMovementParameters(Axis::X, m_Vel.x, m_RunningSpeed, 0.f, accX, true);
-		SetMovementParameters(Axis::Y, m_Vel.y, 0.f, 0.f, GameData::G() * 2, false);
+		AccAndVel accAndVelY{ utils::AccAndVelToTravelDistInTime(m_GroundJumpHeight, m_GroundJumpTime) };
+		SetMovementParameters(Axis::Y, m_Vel.y, 0.f, 0.f, -accAndVelY.acc * 2, false);
 		break;
 	}
 	case State::GroundJumping:
@@ -194,7 +218,7 @@ void Madeline::SetMaxVelByState()
 		float accX{ m_RunningSpeed / 0.1f };
 		SetMovementParameters(Axis::X, m_Vel.x, m_RunningSpeed, 0.f, accX, true);
 		AccAndVel accAndVelY{ utils::AccAndVelToTravelDistInTime(m_GroundJumpHeight, m_GroundJumpTime) };
-		SetMovementParameters(Axis::Y, accAndVelY.vel, 0.f, 0.f, GameData::G(), false);
+		SetMovementParameters(Axis::Y, accAndVelY.vel, 0.f, 0.f, -accAndVelY.acc, false);
 		break;
 	}
 	case State::WallJumping:
@@ -203,7 +227,7 @@ void Madeline::SetMaxVelByState()
 		AccAndVel accAndVelX{ utils::AccAndVelToTravelDistInTime(m_WallJumpDistX, m_WallJumpDistXTime) };
 		SetMovementParameters(Axis::X, wallNormalX * accAndVelX.vel, 0.f, 0.f, -wallNormalX * accAndVelX.acc, false, wallNormalX);
 		AccAndVel accAndVelY{ utils::AccAndVelToTravelDistInTime(m_GroundJumpHeight, m_GroundJumpTime) };
-		SetMovementParameters(Axis::Y, accAndVelY.vel, 0.f, 0.f, GameData::G(), false);
+		SetMovementParameters(Axis::Y, accAndVelY.vel, 0.f, 0.f, -accAndVelX.acc, false);
 		break;
 	}
 	case State::WallHopping:
@@ -213,7 +237,7 @@ void Madeline::SetMaxVelByState()
 		SetMovementParameters(Axis::X, 0.f, 0.f, 0.f, 0.f, false, wallNormalX);
 		//SetMovementParameters(Axis::X, m_Vel.x, m_RunningSpeed, 0.f, accX, true);
 		AccAndVel accAndVelY{ utils::AccAndVelToTravelDistInTime(m_GroundJumpHeight, m_GroundJumpTime) };
-		SetMovementParameters(Axis::Y, accAndVelY.vel, 0.f, 0.f, GameData::G(), false);
+		SetMovementParameters(Axis::Y, accAndVelY.vel, 0.f, 0.f, -accAndVelY.acc, false);
 		break;
 	}
 	case State::WallNeutralJumping:
@@ -222,21 +246,23 @@ void Madeline::SetMaxVelByState()
 		AccAndVel accAndVelX{ utils::AccAndVelToTravelDistInTime(m_WallNeutralJumpDistX, m_WallNeutralJumpDistXTime) };
 		SetMovementParameters(Axis::X, wallNormalX * accAndVelX.vel, 0.f, 0.f, -wallNormalX * accAndVelX.acc, false, wallNormalX);
 		AccAndVel accAndVelY{ utils::AccAndVelToTravelDistInTime(m_GroundJumpHeight, m_GroundJumpTime) };
-		SetMovementParameters(Axis::Y, accAndVelY.vel, 0.f, 0.f, GameData::G(), false);
+		SetMovementParameters(Axis::Y, accAndVelY.vel, 0.f, 0.f, -accAndVelY.acc, false);
 		break;
 	}
 	case State::Falling:
 	{
 		float accX{ m_RunningSpeed / 0.1f };
 		SetMovementParameters(Axis::X, m_Vel.x, m_RunningSpeed, 0.f, accX, true);
-		SetMovementParameters(Axis::Y, m_Vel.y, m_MaxFallSpeed, 0.f, GameData::G(), false);
+		AccAndVel accAndVelY{ utils::AccAndVelToTravelDistInTime(m_GroundJumpHeight, m_GroundJumpTime) };
+		SetMovementParameters(Axis::Y, m_Vel.y, m_MaxFallSpeed, 0.f, -accAndVelY.acc, false);
 		break;
 	}
 	case State::Crouching:
 	{
 		float accX{ m_RunningSpeed / 0.1f };
 		SetMovementParameters(Axis::X, m_Vel.x, 0.f, 0.f, accX, false);
-		SetMovementParameters(Axis::Y, m_Vel.y, m_MaxFallSpeed, 0.f, GameData::G(), false);
+		AccAndVel accAndVelY{ utils::AccAndVelToTravelDistInTime(m_GroundJumpHeight, m_GroundJumpTime) };
+		SetMovementParameters(Axis::Y, m_Vel.y, m_MaxFallSpeed, 0.f, -accAndVelY.acc, false);
 		break;
 	}
 	case State::WallGrabbing:
@@ -260,6 +286,13 @@ void Madeline::SetMaxVelByState()
 		SetMovementParameters(Axis::X, m_Vel.x, 0.f, 0.f, 0.f, false);
 		float accY{ m_WallSlidingSpeed / 0.1f };
 		SetMovementParameters(Axis::Y, m_Vel.y, m_WallSlidingSpeed, 0.f, accY, false);
+		break;
+	}
+	case State::Dashing:
+	{
+		AccAndVel accAndVel{ utils::AccAndVelToTravelDistInTime(m_DashDist, m_DashDistTime) };
+		SetMovementParameters(Axis::X, input.dir.x * accAndVel.vel, 0.f, 0.f, -input.dir.x * accAndVel.acc, false);
+		SetMovementParameters(Axis::Y, input.dir.y * accAndVel.vel, 0.f, 0.f, -input.dir.y * accAndVel.acc, false);
 		break;
 	}
 	}
@@ -331,18 +364,9 @@ void Madeline::SetMaximumVelAndAccByDir(int inputDir, Axis axis)
 		accRef = -std::abs(accRef);
 }
 
-void Madeline::ActivateJump()
+Point2f Madeline::GetPosition() const
 {
-	m_Jumping = true;
-	m_CanJump = false;
-}
-
-bool Madeline::ContainsAction(std::vector<Action> actions, Action action)
-{
-	for (Action a : actions)
-		if (a == action)
-			return true;
-	return false;
+	return Point2f{ m_Bounds.left, m_Bounds.bottom };
 }
 
 void Madeline::DrawCollision() const

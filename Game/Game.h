@@ -27,6 +27,29 @@ public:
 	void ProcessMouseMotionEvent( const SDL_MouseMotionEvent& e ) override;
 	void ProcessMouseDownEvent( const SDL_MouseButtonEvent& e ) override;
 	void ProcessMouseUpEvent( const SDL_MouseButtonEvent& e ) override;
+
+	struct InputActions
+	{
+		Vector2i dir;
+		bool jumping;
+		bool grabbing;
+		bool dashing;
+	};
+
+	struct GameData
+	{
+		float	G;
+		int		TILE_SIZE_PIX;
+		float	WINDOW_NUM_TILES_X;
+		float	WINDOW_NUM_TILES_Y;
+		float	SCREEN_WIDTH;
+		float	SCREEN_HEIGHT;
+		float	RENDER_RES_X;
+		float	RENDER_RES_Y;
+		float	RES_SCALE_X;
+		float	RES_SCALE_Y;
+		int		PIX_PER_M;
+	};
 private:
 	//Functions
 	void Initialize();
@@ -36,6 +59,8 @@ private:
 	//Const Members
 
 	//Members
+	GameData m_GameData;
+	Camera* m_pCamera;
 	Level* m_pActiveLvl;
 	Madeline* m_pMadeline;
 

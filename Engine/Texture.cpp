@@ -349,5 +349,4 @@ void Texture::DrawFilledRect(const Rectf& rect) const
 		glVertex2f(rect.left , rect.bottom + rect.height);
 	}
 	glEnd();
-
 }

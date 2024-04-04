@@ -1,6 +1,6 @@
 #include "pch.h"
 #include "Camera.h"
-#include "../Engine/Vector2f.h"
+#include "Vector2f.h"
 
 Camera::Camera(float screenW, float screenH)
 	: m_ScreenW{ screenW }
@@ -11,6 +11,7 @@ Camera::Camera(float screenW, float screenH)
 
 void Camera::Aim(float levelW, float levelH, const Point2f center)
 {
+	//Center the camera on the player in x and y
 	Point2f bottomLeft{ center.x - m_ScreenW / 2, center.y - m_ScreenH / 2 };
 	if (bottomLeft.x < 0) bottomLeft.x = 0.f;
 	else if (bottomLeft.x + m_ScreenW > levelW) bottomLeft.x = levelW - m_ScreenW;

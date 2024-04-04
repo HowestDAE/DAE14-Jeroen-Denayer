@@ -1,6 +1,9 @@
 #pragma once
 #include "Game.h"
 
+//Forward declarations
+struct Game::InputActions;
+
 class Madeline final
 {
 public:
@@ -17,11 +20,8 @@ public:
 		float wallClimbingSpeed;
 		float wallSlidingSpeed;
 		float maxDistFromWallToWallJump;
-	};
-
-	enum class Action
-	{
-		Jumping, Grabbing, Dashing
+		float dashDist;
+		float dashDistTime;
 	};
 
 	enum class State
@@ -31,25 +31,26 @@ public:
 	std::vector<std::string> m_StateNames{ "Idle", "Running", "Jumping", "EndingJump", "GroundJumping", "WallJumping", "WallHopping", "NeutralJumping", "Falling", "Crouching", "WallGrabbing", "WallClimbing", "WallSliding", "Dashing"};
 
 
-	explicit Madeline(int spawnRow, int spawnCol, float width, float height, const MadelineData& data);
+	explicit Madeline(Point2f pos, float width, float height, const MadelineData& data, Level* pLevel);
+	~Madeline();
 
 	void Draw() const;
-	void Update(float dt, Vector2i inputDir, const std::vector<Action>& actions);
+	void Update(float dt, const Game::InputActions& input);
 	void SetPosition(const Point2f& pos);
+	Point2f GetPosition() const;
 private:
 	//Functions
-	void SetState(const Vector2i& inputDir, const std::vector<Action>& actions);
-	void SetMaxVelByState();
+	void SetState(const Game::InputActions& input);
+	void SetMaxVelByState(const Game::InputActions& input);
 	void SetMovementParameters(Axis axis, float initVel, float targetVel, float time = 0.f, float accOverride = 0.F, bool allowDirChange = true, int allowDirChangeDirOverride = 2);
 	void UpdateVelUsingAcc(float dt, Axis axis);
 	void SetMaximumVelAndAccByDir(int inputIDr, Axis axis);
-	void ActivateJump();
 
-	bool ContainsAction(std::vector<Action> actions, Action action);
 	void DrawCollision() const;
 	void DrawCollisionTile(TileIdx tileIdx, const Color4f& color) const;
 
 	//Members
+	Level* m_pLevel;
 	State m_State;
 	Rectf m_Bounds;
 	Vector2i m_MovementDir;
@@ -72,6 +73,8 @@ private:
 	float m_WallClimbingSpeed;
 	float m_WallSlidingSpeed;
 	float m_MaxDistFromWallToWallJump;
+	float m_DashDist;
+	float m_DashDistTime;
 
 	//State parameters
 	bool m_OnGround;
@@ -81,9 +84,10 @@ private:
 	bool m_AgainstRightWall;
 	bool m_AgainstLeftWall;
 	float m_DistFromWall;
+	bool m_CanDash;
+	bool m_Dashing;
 
 	//Input bools
 	bool m_HoldingJump;
-	bool m_HoldingGrab;
 };
 

@@ -18,6 +18,7 @@
 
 #pragma warning(default : 26812)
 #include <iostream>
+#include <algorithm>
 #include "structs.h"
 #include "utils.h"
 #include "Enums.h"

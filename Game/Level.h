@@ -12,6 +12,8 @@ public:
 	int GetTileID(int row, int col) const;
 	CollisionInfo DetectRectCollision(const Rectf& bounds, bool checkXDir = true, bool checkYDir = true, const Vector2f& vel = Vector2f{}, float time = 0.f, bool checkVelDir = false) const;
 	CollisionInfo MovePhysicsRect(Rectf& bounds, Vector2f& vel, float time) const;
+	int GetWidth() const;
+	int GetHeight() const;
 private:
 	//Functions
 	void FlipLevel();
@@ -19,12 +21,15 @@ private:
 	void SetCollDirInfo(const Rectf& bounds, const Vector2f& velDist, CollisionInfo& ci) const;
 	bool CheckRowCollision(int row, int minCol, int maxCol) const;
 	bool CheckCollCollision(int col, int minRow, int maxRow) const;
+	uint8_t GetPixelID(const SDL_Surface* pSurface, int x, int y);
 
 	//Members
 	int m_Rows;
 	int m_Cols;
 	int m_TileSize;
+	float m_Width;
+	float m_Height;
 	int m_PixPerM;
-	std::vector< std::vector<int8_t> > m_Data;
+	std::vector< std::vector<uint8_t> > m_Data;
 };
 

@@ -12,8 +12,8 @@ GameData::GameData()
 	, m_WINDOW_NUM_TILES_Y{}
 	, m_RENDER_RES_X{}
 	, m_RENDER_RES_Y{}
-	, m_RES_SCALE{}
-	, m_TILE_SIZE_PIX_SCALED{}
+	, m_RES_SCALE_X{}
+	, m_RES_SCALE_Y{}
 	, m_PIX_PER_M{}
 	, m_pActiveLvl{}
 {
@@ -43,8 +43,8 @@ void GameData::SetGameData(float screenWidth, float screenHeight)
     gameData.m_SCREEN_HEIGHT		= screenHeight;
 	gameData.m_RENDER_RES_X			= gameData.m_TILE_SIZE_PIX * gameData.m_WINDOW_NUM_TILES_X;
 	gameData.m_RENDER_RES_Y			= gameData.m_TILE_SIZE_PIX * gameData.m_WINDOW_NUM_TILES_Y;
-	gameData.m_RES_SCALE			= gameData.m_SCREEN_WIDTH / gameData.m_RENDER_RES_X;
-	gameData.m_TILE_SIZE_PIX_SCALED = gameData.m_TILE_SIZE_PIX * int(gameData.m_RES_SCALE);
+	gameData.m_RES_SCALE_X			= gameData.m_SCREEN_WIDTH / gameData.m_RENDER_RES_X;
+	gameData.m_RES_SCALE_Y			= gameData.m_SCREEN_HEIGHT / gameData.m_RENDER_RES_Y;
 	gameData.m_PIX_PER_M			= gameData.m_TILE_SIZE_PIX;
 }
 
@@ -74,9 +74,9 @@ float GameData::RENDER_RES_X() { return Get().m_RENDER_RES_X; }
 
 float GameData::RENDER_RES_Y() { return Get().m_RENDER_RES_Y; }
 
-float GameData::RES_SCALE() { return Get().m_RES_SCALE; }
+float GameData::RES_SCALE_X() { return Get().m_RES_SCALE_X; }
 
-int GameData::TILE_SIZE_PIX_SCALED() { return Get().m_TILE_SIZE_PIX_SCALED; }
+float GameData::RES_SCALE_Y() { return Get().m_RES_SCALE_Y; }
 
 int GameData::PIX_PER_M() { return Get().m_PIX_PER_M; }
 
