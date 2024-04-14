@@ -131,16 +131,14 @@ Depends on how much time I have left, see section below.
 
 <!-- GETTING STARTED -->
 ## Getting Started
-* Open DAE_Jeroen_Denayer.sln
-* Run the project from inside Visual Studio
-
 ### Prerequisites
 * Visual Studio 2022
+* !!Only controller support, tested with PS4 controller, XBOX controller will proably work as well!!
 
 ### How to run the project
-* Press ctrl + F5 inside of Visual Studio
-Explain which project (version) must be run.
-* any extra steps if required 
+* Get the latest project version from GitHub or find the .zip on leho
+* Open DAE_Jeroen_Denayer.sln
+* Press ctrl + F5 inside of Visual Studio to run the project
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -153,8 +151,12 @@ Use this space to show useful examples of how a game can be played.
 Additional screenshots and demos work well in this space. 
 
 ### Controls
-* keys, .. 
-* .. 
+PS4 coontroller:
+* L-Joystick X: move left/right
+* L-Joystick down: crouch
+* X: jump
+* R1/Right Shoulder: dashing
+* R2/Right Trigger: grabbing
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -197,20 +199,37 @@ Explain where you applied inheritance (mandatory).
 <!-- CONTACT -->
 ## Contact
 
-Your Name - jeroen.denayer@student.howest.be
+Jeroen Denayer - jeroen.denayer@student.howest.be
 
-Project Link: [https://github.com/your_username/repo_name](https://github.com/your_username/repo_name)
+Project Link: https://github.com/HowestDAE/DAE13-Jeroen-Denayer
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
 <!-- ACKNOWLEDGMENTS -->
 ## Acknowledgments
+### C++:
+* Design pattern to load resources: https://www.reddit.com/r/gamedev/comments/1ubjdc/where_do_you_keep_textures_after_you_load_them/
+* Passing managers/other "global" data to many classes/functions problem: https://cplusplus.com/forum/beginner/275653/
+* SDL_GameController support: https://blog.rubenwardy.com/2023/01/24/using_sdl_gamecontroller/
 
-Use this space to list resources you find helpful and would like to give credit to. 
+### Collision/Physics:
+* Colission engine: https://gamedev.stackexchange.com/questions/26501/how-does-a-collision-engine-work
+* Tile-map collision method: https://jonathanwhiting.com/tutorial/collision/
+* Swept AABB collision: https://www.gamedev.net/articles/programming/general-and-gameplay-programming/swept-aabb-collision-detection-and-response-r3084/
+* celeste & towerfall physics: https://www.maddymakesgames.com/articles/celeste_and_towerfall_physics/index.html
+* thread talking about collision: https://love2d.org/forums/viewtopic.php?t=86336
+* reddit collision thread: https://www.reddit.com/r/gamedev/comments/exyp8/platformer_collision_detection_physics/
+* Variable jump height: https://www.reddit.com/r/gamedesign/comments/ozaaj0/variable_jump_height_different_ways_to_do_it/
 
-* [Example 1: cpp reference on std::vector](https://en.cppreference.com/w/cpp/container/vector)
-* ..
+### Celeste Links:
+* Celeste extracted art: https://www.reddit.com/r/celestegame/comments/i5nj6w/can_you_extract_the_background_art_from_levels/
+* Level Art brakedown: https://aran.ink/posts/celeste-tilesets
+* Tools used for celeste development: https://celestegame.tumblr.com/post/158491854009/tools
+* Mechanics explained: https://celeste.ink/wiki/Techniques
+* Mechanics distance info: https://www.neoseeker.com/celeste/Celeste_Basic_Controls
+* Celeste game-feel info: https://www.reddit.com/r/gamedev/comments/fhzw5f/developer_of_celeste_shares_some_cool_gamefeel/
+
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
