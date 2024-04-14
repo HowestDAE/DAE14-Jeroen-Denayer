@@ -18,7 +18,7 @@
   </p>
 </div>
 
-![Title Screen](TitleScreen.png)
+![Title Screen](READMEContent/TitleScreen.png)
 
 <!-- TABLE OF CONTENTS -->
 <details>
@@ -146,18 +146,47 @@ Depends on how much time I have left, see section below.
 
 <!-- HOW TO PLAY -->
 ## How to play
-
-Use this space to show useful examples of how a game can be played. 
-Additional screenshots and demos work well in this space. 
-
 ### Controls
 PS4 coontroller:
 * L-Joystick X: move left/right
 * L-Joystick down: crouch
 * X: jump
-* R1/Right Shoulder: dashing
-* R2/Right Trigger: grabbing
+* R1/Right Shoulder + L-Joystick direction: dashing
+* R2/Right Trigger + against a wall + L-Joystick Y: wall grabbing, climbing, sliding
 
+## Examples
+Running:
+
+<img src="READMEContent/Running.gif" alt="Running" width="300"/>
+
+Crouching:
+
+<img src="READMEContent/Crouching.gif" alt="Crouching" width="300"/>
+
+Jumping:
+
+<img src="READMEContent/Jumping.gif" alt="Jumping" width="300"/>
+
+Wall Grabbing, Climbing, Sliding:
+
+<img src="READMEContent/WallClimbingAndSliding.gif" alt="WallClimbingAndSliding.gif" width="300"/>
+
+Wall Hopping:
+
+<img src="READMEContent/WallHopping.gif" alt="WallHopping.gif" width="300"/>
+
+
+Wall Jumping:
+
+<img src="READMEContent/WallJumping.gif" alt="WallJumping.gif" width="300"/>
+
+Wall Neutral Jumping:
+
+<img src="READMEContent/WallNeutralJumping.gif" alt="WallNeutralJumping.gif" width="300"/>
+
+Dashing:
+
+<img src="READMEContent/Dashing.gif" alt="Dashing.gif" width="300"/>
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
@@ -166,12 +195,15 @@ PS4 coontroller:
 ## Class structure 
 
 ### Object composition 
-If you applied object composition (optional); explain where and how.
+Madeline.h contains a MultiSpriteSheet pointer, fully manages the creation updates during its lifetime and deletion of this object.
 
 ### Inheritance 
-Explain where you applied inheritance (mandatory).
+MultiSpriteSheet.h inherits from SpriteSheet.h. This MultiSpriteSheet class makes use of the protected data members and the draw function of the SpriteSheet class. As well as overriding the Update() method.
 
-### ..
+### Polymorphism
+Not yet, however I will most likely use polymorphism in the future in the Level class.
+The level will contain a vector of "physics objects" inluding the player/madeline and falling blocks/platforms that inherit from this base physics object.
+The level will then take care of updating these physics objects that it contains.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -180,11 +212,11 @@ Explain where you applied inheritance (mandatory).
 ## Checklist
 
 - [x] Accept / set up github project
-- [ ] week 01 topics applied
-    - [ ] const keyword applied proactively (variables, functions,..)
+- [x] week 01 topics applied
+    - [x] const keyword applied proactively (variables, functions,..)
     - [ ] static keyword applied proactively (class variables, static functions,..)
-    - [ ] object composition (optional)
-- [ ] week 02 topics applied
+    - [x] object composition (optional)
+- [ ] wxek 02 topics applied
 - [ ] week 03 topics applied
 - [ ] week 04 topics applied
 - [ ] week 05 topics applied
@@ -198,10 +230,9 @@ Explain where you applied inheritance (mandatory).
 
 <!-- CONTACT -->
 ## Contact
-
 Jeroen Denayer - jeroen.denayer@student.howest.be
 
-Project Link: https://github.com/HowestDAE/DAE13-Jeroen-Denayer
+Project Link: https://github.com/HowestDAE/DAE14-Jeroen-Denayer
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
