@@ -195,7 +195,7 @@ Dashing:
 ## Class structure 
 
 ### Object composition 
-Madeline.h contains a MultiSpriteSheet pointer, fully manages the creation updates during its lifetime and deletion of this object.
+Madeline.h contains a MultiSpriteSheet pointer, fully manages the creation, updates during its lifetime and deletion of this object.
 
 ### Inheritance 
 MultiSpriteSheet.h inherits from SpriteSheet.h. This MultiSpriteSheet class makes use of the protected data members and the draw function of the SpriteSheet class. As well as overriding the Update() method.
@@ -245,7 +245,7 @@ Project Link: https://github.com/HowestDAE/DAE14-Jeroen-Denayer
 * SDL_GameController support: https://blog.rubenwardy.com/2023/01/24/using_sdl_gamecontroller/
 
 ### Collision/Physics:
-* Colission engine: https://gamedev.stackexchange.com/questions/26501/how-does-a-collision-engine-work
+* Collision engine: https://gamedev.stackexchange.com/questions/26501/how-does-a-collision-engine-work
 * Tile-map collision method: https://jonathanwhiting.com/tutorial/collision/
 * Swept AABB collision: https://www.gamedev.net/articles/programming/general-and-gameplay-programming/swept-aabb-collision-detection-and-response-r3084/
 * celeste & towerfall physics: https://www.maddymakesgames.com/articles/celeste_and_towerfall_physics/index.html
