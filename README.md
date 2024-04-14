@@ -56,7 +56,7 @@ Why I chose Celeste:
 
 ## My version
 
-This section gives an overview on which parts of the original game I plan to make.
+This section gives an overview of which parts of the original game I plan to make.
 
 I will re-create the Badeline boss fight from Chapter 6 called reflection in as much detail as possible.
 <div align="left">
@@ -65,8 +65,6 @@ I will re-create the Badeline boss fight from Chapter 6 called reflection in as 
 
 
 ### The minimum I will most certainly develop:
-I listed a lot of things which might seem to much to handle. But I don't have to do the 3D1 course so this frees time for programming 2.
-
 #### Level:
 * 10 screens (entire chase/fight sequence is 21 screens)
 * Per screen all obstacles/things Madeline can collide with, die from or interact with
@@ -133,7 +131,7 @@ Depends on how much time I have left, see section below.
 ## Getting Started
 ### Prerequisites
 * Visual Studio 2022
-* !!Only controller support, tested with PS4 controller, XBOX controller will proably work as well!!
+* !!Only controller support, tested with PS4 controller, XBOX controller will probably work as well!!
 
 ### How to run the project
 * Get the latest project version from GitHub or find the .zip on leho
@@ -216,7 +214,7 @@ The level will then take care of updating these physics objects that it contains
     - [x] const keyword applied proactively (variables, functions,..)
     - [ ] static keyword applied proactively (class variables, static functions,..)
     - [x] object composition (optional)
-- [ ] wxek 02 topics applied
+- [ ] week 02 topics applied
 - [ ] week 03 topics applied
 - [ ] week 04 topics applied
 - [ ] week 05 topics applied
