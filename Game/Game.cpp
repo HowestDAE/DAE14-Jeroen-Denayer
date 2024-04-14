@@ -21,23 +21,9 @@ void Game::Initialize()
 	Rectf vp{ GetViewPort() };
 
 	//Setting Madeline parameters
-	float madelinePixWidth{ 12 };
+	float madelinePixWidth{ 8 };
 	float madelinePixHeight{ 16 };
-	Madeline::MadelineData madelineData{};
-	madelineData.groundJumpHeight = 3.5f;
-	madelineData.groundJumpTime = 0.35f;
-	madelineData.runningSpeed = 12.f;
-	madelineData.wallNeutralJumpDistX = 2.f;
-	madelineData.wallNeutralJumpDistXTime = 0.15f;
-	madelineData.wallJumpDistX = 3.5f;
-	madelineData.wallJumpDistXTime = 0.35f;
-	madelineData.maxFallSpeed = -30.f;
-	madelineData.wallClimbingSpeed = 8.f;
-	madelineData.wallSlidingSpeed = -12.f;
-	madelineData.maxDistFromWallToWallJump = 2.f;
-	madelineData.dashDist = madelinePixHeight * 4;
-	madelineData.dashDistTime = 1.f;
-	AccAndVel madelineJumpAccAndVel{ utils::AccAndVelToTravelDistInTime(madelineData.groundJumpHeight, madelineData.groundJumpTime) };
+	AccAndVel madelineJumpAccAndVel{ utils::AccAndVelToTravelDistInTime(3.5f, 0.35f) };
 
 	//Setting game parameters
 	m_GameData.G = -madelineJumpAccAndVel.acc;
@@ -56,7 +42,7 @@ void Game::Initialize()
 	m_pCamera = new Camera(m_GameData.RENDER_RES_X, m_GameData.RENDER_RES_Y);
 
 	Point2f pos{ 8 * 8, 2 * 8 };
-	m_pMadeline = new Madeline(pos, madelinePixWidth, madelinePixHeight, madelineData, m_pActiveLvl);
+	m_pMadeline = new Madeline(pos, madelinePixWidth, madelinePixHeight, m_pActiveLvl);
 }
 
 void Game::Cleanup( )
@@ -105,7 +91,6 @@ void Game::Update( float elapsedSec )
 		
 	m_pMadeline->Update(elapsedSec, input);
 	Point2f pos{ m_pMadeline->GetPosition() };
-	std::cout << pos.x << " " << pos.y << std::endl;
 }
 
 void Game::Draw( ) const
@@ -150,13 +135,6 @@ void Game::ProcessKeyUpEvent( const SDL_KeyboardEvent& e )
 void Game::ProcessMouseMotionEvent( const SDL_MouseMotionEvent& e )
 {
 	//std::cout << "MOUSEMOTION event: " << e.x << ", " << e.y << std::endl;
-	Point2f mousePos{ float(e.x), float(e.y) };
-	if (m_LMBPressed)
-	{
-		//To-DO: fix broken pos being set
-		Point2f pos{ mousePos.x / m_GameData.RES_SCALE_X, mousePos.y / m_GameData.RES_SCALE_Y };
-		m_pMadeline->SetPosition(pos);
-	}
 }
 
 void Game::ProcessMouseDownEvent( const SDL_MouseButtonEvent& e )

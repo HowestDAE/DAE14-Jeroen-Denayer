@@ -9,6 +9,7 @@ Texture::Texture( const std::string& imagePath )
 	,m_Width{ 10.0f }
 	,m_Height{ 10.0f }
 	,m_CreationOk{ false }
+	,m_FlipInX{ false }
 {
 	CreateFromImage( imagePath );
 }
@@ -294,7 +295,13 @@ void Texture::Draw( const Rectf& dstRect, const Rectf& srcRect ) const
 	{
 		vertexRight = vertexLeft + dstRect.width;
 		vertexTop = vertexBottom + dstRect.height;
+	}
 
+	if (m_FlipInX)
+	{
+		float tempVertexLeft{ vertexLeft };
+		vertexLeft = vertexRight;
+		vertexRight = tempVertexLeft;
 	}
 
 	// Tell opengl which texture we will use
@@ -336,6 +343,11 @@ float Texture::GetHeight() const
 bool Texture::IsCreationOk( ) const
 {
 	return m_CreationOk;
+}
+
+void Texture::Flip(bool flipX)
+{
+	m_FlipInX = flipX;
 }
 
 void Texture::DrawFilledRect(const Rectf& rect) const

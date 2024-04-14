@@ -19,6 +19,7 @@ public:
 	float GetWidth() const;
 	float GetHeight() const;
 	bool IsCreationOk( ) const;
+	void Flip(bool flipX);
 
 private:
 	//DATA MEMBERS
@@ -26,6 +27,7 @@ private:
 	float m_Width;
 	float m_Height;
 	bool m_CreationOk;
+	bool m_FlipInX;
 
 	// FUNCTIONS
 	void CreateFromImage( const std::string& path );

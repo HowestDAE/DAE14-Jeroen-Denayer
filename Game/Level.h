@@ -2,10 +2,14 @@
 #include <vector>
 #include "Game.h"
 
+//Forward declarations
+class Texture;
+
 class Level final
 {
 public:
 	Level();
+	~Level();
 
 	void Draw() const;
 	int GetTileID(TileIdx tileIdx) const;
@@ -16,12 +20,14 @@ public:
 	int GetHeight() const;
 private:
 	//Functions
+	bool LoadLevel(const std::string& name);
 	void FlipLevel();
 	CollisionDir GetCollisionDir(const Rectf& bounds, bool checkXDir = true, bool checkYDir = true, const Vector2f& velDist = Vector2f{}, float time = 0.f, bool checkVelDir = false) const;
 	void SetCollDirInfo(const Rectf& bounds, const Vector2f& velDist, CollisionInfo& ci) const;
 	bool CheckRowCollision(int row, int minCol, int maxCol) const;
 	bool CheckCollCollision(int col, int minRow, int maxRow) const;
-	uint8_t GetPixelID(const SDL_Surface* pSurface, int x, int y);
+	uint8_t GetPixelID(const SDL_Surface* pSurface, int x, int y) const;
+	bool IsCollisionTile(TileIdx tileIdx) const;
 
 	//Members
 	int m_Rows;
@@ -30,6 +36,8 @@ private:
 	float m_Width;
 	float m_Height;
 	int m_PixPerM;
+	std::vector<Texture*> m_pTexturesArr;
+	std::vector<int> m_IDToTextureIdxArr;
 	std::vector< std::vector<uint8_t> > m_Data;
 };
 

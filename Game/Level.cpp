@@ -6,27 +6,13 @@ Level::Level()
 	: m_TileSize{ 8 }
 	, m_PixPerM{ 8 }
 {
-	SDL_Surface* pSurface{ IMG_Load("Levels/level_04.bmp") };
-	if (pSurface != nullptr)
-	{
-		m_Rows = pSurface->h;
-		m_Cols = pSurface->w;
-		m_Width = float(m_Cols * m_TileSize);
-		m_Height = float(m_Rows * m_TileSize);
-		//Reserve only necessary space for level
-		m_Data = std::vector<std::vector<uint8_t>>(m_Rows, std::vector<uint8_t>(m_Cols));
-		
-		for (int r{}; r < m_Rows; r++)
-		{
-			for (int c{}; c < m_Cols; c++)
-			{
-				uint8_t pixelID{ GetPixelID(pSurface, c, r) };
-				m_Data[r].insert(m_Data[r].begin() + c, pixelID);
-			}
-		}
+	LoadLevel("level_01.bmp");
+}
 
-		FlipLevel();
-	}
+Level::~Level()
+{
+	for (Texture* pTexture : m_pTexturesArr)
+		delete pTexture;
 }
 
 void Level::Draw() const
@@ -35,15 +21,39 @@ void Level::Draw() const
 	{
 		for (int c{}; c < m_Data[r].size(); ++c)
 		{
-			int value{ m_Data[r][c] };
-			if (value == 1)
-				utils::SetColor(Color4f{ 0.5f, 0.5f, 0.5f, 1.f });
-			else if (value == 0)
-				utils::SetColor(Color4f{ 0.f, 0.f, 0.f, 1.f });
-
+			TileIdx tileIdx{ r, c };
+			int ID{ m_Data[r][c] };
 			float x{ float(c * m_TileSize) };
 			float y{ float(r * m_TileSize) };
-			utils::FillRect(x, y, m_TileSize, m_TileSize);
+			if (ID >= 0 && ID < m_IDToTextureIdxArr.size())
+			{
+				int textureIdx{ m_IDToTextureIdxArr[ID] };
+				if (textureIdx >= 0 && textureIdx < m_pTexturesArr.size())
+				{
+					Texture* pTexture{ m_pTexturesArr[textureIdx] };
+					if (pTexture)
+					{
+						Rectf srcRect{ 0.f, 0.f, float(m_TileSize), float(m_TileSize) };
+						Rectf dstRect{ utils::GetTileRect(tileIdx, m_TileSize) };
+						pTexture->Draw(dstRect, srcRect);
+					}
+					else //Draw pink rectangle, texture not properly loaded
+					{
+						utils::SetColor(Color4f{ 1.f, 0.f, 1.f, 1.f });
+						utils::FillRect(x, y, m_TileSize, m_TileSize);
+					}
+				}
+				else //Draw black rectangle, ID specifically mapped to invalid texture
+				{
+					utils::SetColor(Color4f{ 0.f, 0.f, 0.f, 1.f });
+					utils::FillRect(x, y, m_TileSize, m_TileSize);
+				}
+			}
+			else //Draw red rectangle, ID not mapped to textureID in m_IDToTextureIdxArr
+			{
+				utils::SetColor(Color4f{ 1.f, 0.f, 0.f, 1.f });
+				utils::FillRect(x, y, m_TileSize, m_TileSize);
+			}
 		}
 	}
 
@@ -135,6 +145,48 @@ int Level::GetHeight() const
 	return m_Rows * m_TileSize;
 }
 
+bool Level::LoadLevel(const std::string& name)
+{
+	bool succes{};
+	std::string levelPath{ "Textures/Levels/" + name };
+	SDL_Surface* pSurface{ IMG_Load(levelPath.c_str()) };
+	if (pSurface == nullptr)
+		return succes;
+
+	succes = true;
+	m_Rows = pSurface->h;
+	m_Cols = pSurface->w;
+	m_Width = float(m_Cols * m_TileSize);
+	m_Height = float(m_Rows * m_TileSize);
+	//Reserve only necessary space for level
+	m_Data = std::vector<std::vector<uint8_t>>(m_Rows, std::vector<uint8_t>(m_Cols));
+
+	for (int r{}; r < m_Rows; r++)
+	{
+		for (int c{}; c < m_Cols; c++)
+		{
+			uint8_t pixelID{ GetPixelID(pSurface, c, r) };
+			m_Data[r].insert(m_Data[r].begin() + c, pixelID);
+		}
+	}
+	FlipLevel();
+
+	//Load textures needed for this level
+	//Hardcoded atm, should be changed
+	std::vector<std::string> textureNames{ "Textures/grass.png", "Textures/reflection.png" };
+	for (const std::string& textureName: textureNames)
+	{
+		Texture* pTexture{ new Texture(textureName) };
+		if (!pTexture)
+			std::cout << "Couldn't load " << textureName << std::endl;
+		m_pTexturesArr.push_back(pTexture);
+	}
+
+	m_IDToTextureIdxArr = std::vector<int>{-1, 0, 0, 1};
+
+	return succes;
+}
+
 void Level::FlipLevel()
 {
 	std::vector< std::vector<uint8_t> > dataCopy{ m_Data };
@@ -147,7 +199,7 @@ void Level::FlipLevel()
 bool Level::CheckCollCollision(int col, int minRow, int maxRow) const
 {
 	for (int row{ minRow }; row < maxRow + 1; ++row)
-		if (GetTileID(row, col) == 1)
+		if (IsCollisionTile(TileIdx{ row, col }))
 			return true;
 	return false;
 }
@@ -155,7 +207,7 @@ bool Level::CheckCollCollision(int col, int minRow, int maxRow) const
 bool Level::CheckRowCollision(int row, int minCol, int maxCol) const
 {
 	for (int col{ minCol }; col < maxCol + 1; ++col)
-		if (GetTileID(row, col) == 1)
+		if (IsCollisionTile(TileIdx{ row, col }))
 			return true;
 	return false;
 }
@@ -210,13 +262,13 @@ CollisionDir Level::GetCollisionDir(const Rectf& bounds, bool checkXDir, bool ch
 			(moving.up) ? corners.leftTop.r : corners.leftBottom.r,
 			(moving.right) ? corners.rightBottom.c : corners.leftBottom.c
 		};
-		if ((!checkVelDir || corners.leftBottom == cornerInVelDir) && GetTileID(corners.leftBottom) == 1)
+		if ((!checkVelDir || corners.leftBottom == cornerInVelDir) && IsCollisionTile(corners.leftBottom))
 			collDir.leftBottom = true;
-		if ((!checkVelDir || corners.leftTop == cornerInVelDir) && GetTileID(corners.leftTop) == 1)
+		if ((!checkVelDir || corners.leftTop == cornerInVelDir) && IsCollisionTile(corners.leftTop))
 			collDir.leftTop = true;
-		if ((!checkVelDir || corners.rightTop == cornerInVelDir) && GetTileID(corners.rightTop) == 1)
+		if ((!checkVelDir || corners.rightTop == cornerInVelDir) && IsCollisionTile(corners.rightTop))
 			collDir.rightTop = true;
-		if ((!checkVelDir || corners.rightBottom == cornerInVelDir) && GetTileID(corners.rightBottom) == 1)
+		if ((!checkVelDir || corners.rightBottom == cornerInVelDir) && IsCollisionTile(corners.rightBottom))
 			collDir.rightBottom = true;
 		if (collDir.leftBottom || collDir.leftTop || collDir.rightTop || collDir.rightBottom)
 			collDir.corner = true;
@@ -275,7 +327,13 @@ void Level::SetCollDirInfo(const Rectf& bounds, const Vector2f& velDist, Collisi
 	}
 }
 
-uint8_t Level::GetPixelID(const SDL_Surface* pSurface, int x, int y)
+bool Level::IsCollisionTile(TileIdx tileIdx) const
+{
+	int tileID{ GetTileID(tileIdx) };
+	return tileID > 0;
+}
+
+uint8_t Level::GetPixelID(const SDL_Surface* pSurface, int x, int y) const
 {
 	// Bytes per pixel
 	const Uint8 Bpp = pSurface->format->BytesPerPixel;

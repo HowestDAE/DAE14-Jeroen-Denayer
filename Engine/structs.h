@@ -107,6 +107,12 @@ struct Vector2i
 	int y;
 };
 
+struct BoolXY
+{
+	bool x;
+	bool y;
+};
+
 struct VelInfo
 {
 	bool left;

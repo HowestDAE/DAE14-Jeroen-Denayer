@@ -58,7 +58,7 @@ Why I chose Celeste:
 
 This section gives an overview on which parts of the original game I plan to make.
 
-I will re-create the Badeline boss fight from Chapter 6 in as much detail as possible.
+I will re-create the Badeline boss fight from Chapter 6 called reflection in as much detail as possible.
 <div align="left">
     <a href="https://www.youtube.com/watch?v=H9xwR2jB26k"><strong>Bossfight video»<strong></a>
 </div>
@@ -131,15 +131,14 @@ Depends on how much time I have left, see section below.
 
 <!-- GETTING STARTED -->
 ## Getting Started
-TO-DO: Detailed instructions on how to run your game project are in this section.
+* Open DAE_Jeroen_Denayer.sln
+* Run the project from inside Visual Studio
 
 ### Prerequisites
-
-This is an example of how to list things you need to use the software and how to install them.
 * Visual Studio 2022
 
 ### How to run the project
-
+* Press ctrl + F5 inside of Visual Studio
 Explain which project (version) must be run.
 * any extra steps if required 
 
