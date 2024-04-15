@@ -52,11 +52,7 @@ public:
 	};
 private:
 	//Functions
-	void Initialize();
-	void Cleanup( );
 	void ClearBackground( ) const;
-
-	//Const Members
 
 	//Members
 	GameData m_GameData;

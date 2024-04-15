@@ -5,8 +5,7 @@
 #include "MultiSpriteSheet.h"
 
 Madeline::Madeline(Point2f pos, float width, float height, Level* pLevel)
-	: m_pMultiSpriteSheet{ nullptr }
-	, m_pLevel{ pLevel }
+	: m_pLevel{ pLevel }
 	, m_State{ State::Idle }
 	, m_pStateInfo{ nullptr }
 	, m_Bounds{ Rectf{pos.x, pos.y, width, height} }
@@ -83,7 +82,7 @@ Madeline::Madeline(Point2f pos, float width, float height, Level* pLevel)
 
 	m_pStateInfo = &m_StateInfoArr[0];
 
-	m_pMultiSpriteSheet = new MultiSpriteSheet("Textures/MadelineSpritesheet.png", 14, 14,
+	m_pMultiSpriteSheet = new MultiSpriteSheet{ "Textures/MadelineSpritesheet.png", 14, 14,
 		std::unordered_map<std::string, MultiSpriteSheet::SpriteSheetInfo>{
 			{ "Climbing", { 0, 15, 0.1f } },
 			{ "Crouching", {15, 16, 0.1f} },
@@ -105,16 +104,20 @@ Madeline::Madeline(Point2f pos, float width, float height, Level* pLevel)
 			{ "RunSlow", {169, 181, 0.1f} },
 			{ "Walk", {181, 193, 0.1f} }
 		}
-	);
-	if (!m_pMultiSpriteSheet)
-	{
-		std::cout << "Failed to load madeline texture" << std::endl;
-	}
+	};
 }
 
 Madeline::~Madeline()
 {
 	m_pLevel = nullptr;
+	delete m_pStateInfo;
+	for (StateInfo& stateInfo : m_StateInfoArr)
+	{
+		delete stateInfo.x;
+		delete stateInfo.y;
+		stateInfo.x = nullptr;
+		stateInfo.y = nullptr;
+	}
 	delete m_pMultiSpriteSheet;
 	m_pMultiSpriteSheet = nullptr;
 }

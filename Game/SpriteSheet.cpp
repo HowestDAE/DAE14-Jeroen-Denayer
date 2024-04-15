@@ -14,7 +14,7 @@ SpriteSheet::SpriteSheet(const std::string& texturePath, int rows, int cols, int
 {
 	m_pTexture = new Texture(texturePath);
 	if (!m_pTexture)
-		std::cout << "Could load " << texturePath << std::endl;
+		std::cout << "Couldn't load " << texturePath << std::endl;
 	else
 		m_FrameSize = int(m_pTexture->GetWidth() / m_Cols);
 }

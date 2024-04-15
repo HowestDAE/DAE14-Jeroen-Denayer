@@ -5,19 +5,10 @@
 #include "Level.h"
 
 Game::Game( const Window& window ) 
-	:BaseGame{ window }
+	: BaseGame{ window }
+	, m_GameData{ GameData{} }
+	, m_LMBPressed{ false }
 {
-	Initialize();
-}
-
-Game::~Game( )
-{
-	Cleanup( );
-}
-
-void Game::Initialize()
-{
-	m_LMBPressed = false;
 	Rectf vp{ GetViewPort() };
 
 	//Setting Madeline parameters
@@ -45,7 +36,7 @@ void Game::Initialize()
 	m_pMadeline = new Madeline(pos, madelinePixWidth, madelinePixHeight, m_pActiveLvl);
 }
 
-void Game::Cleanup( )
+Game::~Game( )
 {
 	delete m_pCamera;
 	delete m_pMadeline;
