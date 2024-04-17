@@ -24,6 +24,13 @@ Point2f::Point2f( float x, float y )
 {
 }
 
+Point2f& Point2f::operator+=(const Point2f& rhs)
+{
+	x += rhs.x;
+	y += rhs.y;
+	return *this;
+}
+
 //-----------------------------------------------------------------
 // Rectf Constructors
 //-----------------------------------------------------------------
@@ -38,6 +45,13 @@ Rectf::Rectf( float left, float bottom, float width, float height )
 	,width{ width }
 	,height{ height }
 {
+}
+
+Rectf& Rectf::operator+=(const Point2f& rhs)
+{
+	left += rhs.x;
+	bottom += rhs.y;
+	return *this;
 }
 
 //-----------------------------------------------------------------

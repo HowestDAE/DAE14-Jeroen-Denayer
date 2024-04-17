@@ -19,6 +19,8 @@ struct Point2f
 
 	float x;
 	float y;
+
+	Point2f& operator+=(const Point2f& rhs);
 };
 
 struct Rectf
@@ -30,6 +32,8 @@ struct Rectf
 	float bottom;
 	float width;
 	float height;
+
+	Rectf& operator+=(const Point2f& rhs);
 };
 
 struct Color4f
@@ -154,4 +158,5 @@ struct CollisionInfo
 	CollisionDirInfo right;
 	CollisionDirInfo up;
 	CollisionDirInfo down;
+	Point2f movedDist;
 };

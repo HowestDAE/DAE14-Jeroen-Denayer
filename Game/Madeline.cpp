@@ -4,26 +4,28 @@
 #include "Game.h"
 #include "MultiSpriteSheet.h"
 
-Madeline::Madeline(Point2f pos, float width, float height, Level* pLevel)
-	: m_pLevel{ pLevel }
+Madeline::Madeline(Point2f pos, float width, float height)
+	: PhysicsBody(Rectf{pos.x, pos.y, width, height})
 	, m_State{ State::Idle }
 	, m_pStateInfo{ nullptr }
-	, m_Bounds{ Rectf{pos.x, pos.y, width, height} }
-	, m_Vel{ Vector2f{} }
-	, m_Acc{ Vector2f{} }
-	, m_AllowDirChange{}
 	//State parameters
 	, m_OnGround{}
 	, m_CanJump{}
 	, m_Jumping{}
+	, m_AirTime{}
+	, m_Grabbing{}
 	, m_AgainstWall{}
 	, m_AgainstRightWall{}
 	, m_AgainstLeftWall{}
 	, m_DistFromWall{}
-	, m_MaxDistFromWallToWallJump{ 2.f }
 	, m_CanDash{}
 	, m_Dashing{}
+	//Constants
+	, m_LedgeJumpTime{ 0.15f }
+	, m_MaxDistFromWallToWallJump{ 2.f }
 {
+	AddOverlapRect(Vector2f{m_Bounds.left - m_MaxDistFromWallToWallJump, m_Bounds.bottom + m_Bounds.height / 3 }, m_Bounds.width + 2 * m_MaxDistFromWallToWallJump, m_Bounds.height / 3);
+
 	float groundJumpHeight = 3.5f;
 	float groundJumpTime = 0.35f;
 	AccAndVel groundJumpAccVel{ utils::AccAndVelToTravelDistInTime(groundJumpHeight, groundJumpTime) };
@@ -47,20 +49,20 @@ Madeline::Madeline(Point2f pos, float width, float height, Level* pLevel)
 	AccAndVel dashAccVel{ utils::AccAndVelToTravelDistInTime(dashDist, dashDistTime) };
 
 	m_MovementParametersMap = std::unordered_map<std::string, MovementParameters>{
-		{"Stationary", {false, 0.f, 0.f, 0.f, true, false, false}},
-		{"Running", {true, 0.f, runningSpeed, runningAcc, true, false, false}},
-		{"Gravity", {true, 0.f, maxFallSpeed, gravity, false, false, false}},
-		{"DoubleGraivty", {true, 0.f, maxFallSpeed, gravity * 2, false, false, false}},
-		{"GroundJumpingY", {false, groundJumpAccVel.vel, maxFallSpeed, gravity, false, false, false}},
-		{"WallJumpingX", {false, wallJumpAccVel.vel, 0.f, wallJumpAccVel.acc, false, true, false}},
-		{"WallJumpingY", {false, wallJumpAccVel.vel, 0.f, wallJumpAccVel.acc, false, false, false}},
-		{"WallHoppingY", {false, groundJumpAccVel.vel, 0.f, gravity, false, false, false}},
-		{"NeutralJumpingX", {false, wallNeutralJumpAccVelX.vel, 0.f, wallNeutralJumpAccVelX.acc, false, true, false}},
-		{"NeutralJumpingY", {false, groundJumpAccVel.vel, 0.f, groundJumpAccVel.acc, false, false, false}},
-		{"WallGrabbingY", {true, 0.f, 0.f, wallGrabbingAcc, false, false, false}},
-		{"WallClimbingY", {false, 0.f, wallClimbingSpeed, wallClimbingAcc, false, false, false}},
-		{"WallSlidingY", {true, 0.f, wallSlidingSpeed, wallSlidingAcc, false, false, false}},
-		{"Dashing", {false, dashAccVel.vel, 0.f, dashAccVel.acc, false, false, true}}
+		{"Stationary",		{0.f, 0.f, 0.f, true, true, false, false}},
+		{"Running",			{runningSpeed, runningAcc, 0.f, false, true, false, false}},
+		{"Gravity",			{maxFallSpeed, gravity, 0.f, false, false, false, false}},
+		{"DoubleGravity",	{maxFallSpeed, gravity * 2, 0.f, false, false, false, false}},
+		{"GroundJumpingY",	{maxFallSpeed, gravity, groundJumpAccVel.vel, true, false, false, false}},
+		{"WallJumpingX",	{0.f, wallJumpAccVel.acc, wallJumpAccVel.vel, true, false, true, false}},
+		{"WallJumpingY",	{0.f, wallJumpAccVel.acc, wallJumpAccVel.vel, true, false, false, false}},
+		{"WallHoppingY",	{0.f, gravity, groundJumpAccVel.vel, true, false, false, false}},
+		{"NeutralJumpingX", {0.f, wallNeutralJumpAccVelX.acc, wallNeutralJumpAccVelX.vel, true, false, true, false}},
+		{"NeutralJumpingY", {0.f, groundJumpAccVel.acc, groundJumpAccVel.vel, true, false, false, false}},
+		{"WallGrabbingY",	{0.f, wallGrabbingAcc, 0.f, false, false, false, false}},
+		{"WallClimbingY",	{wallClimbingSpeed, wallClimbingAcc, 0.f, true, false, false, false}},
+		{"WallSlidingY",	{wallSlidingSpeed, wallSlidingAcc, 0.f, false, false, false, false}},
+		{"Dashing",			{0.f, dashAccVel.acc, dashAccVel.vel, true, false, false, true}}
 	};
 
 	m_StateInfoArr = std::vector<StateInfo>{
@@ -109,7 +111,6 @@ Madeline::Madeline(Point2f pos, float width, float height, Level* pLevel)
 
 Madeline::~Madeline()
 {
-	m_pLevel = nullptr;
 	delete m_pStateInfo;
 	for (StateInfo& stateInfo : m_StateInfoArr)
 	{
@@ -134,53 +135,56 @@ void Madeline::Draw() const
 		frameSize, frameSize
 	};
 	m_pMultiSpriteSheet->Draw(dstRect);
+
+	const Rectf& wallRect{ m_OverlapRects[0] };
+	utils::SetColor(Color4f{ 1.f, 0.f, 0.f, 1.f });
+	utils::DrawRect(m_Bounds);
+	utils::DrawRect(wallRect);
 }
 
 void Madeline::Update(float dt, const Game::InputActions& input)
 {
+	SetStateParameters(dt, input);
+
+	State prevState{ m_State };
 	SetState(input);
-	//std::cout << "State: " << m_pStateInfo->name << std::endl;
-	
-	UpdateVel(dt, m_Vel.x, m_Acc.x, input.dir.x, *m_pStateInfo->x);
-	UpdateVel(dt, m_Vel.y, m_Acc.y, input.dir.y, *m_pStateInfo->y);
-	UpdateMultiSpriteSheet(dt);
 
-	/* TO-DO: collision detection only checks the tiles in front of the player,
-	if deltaTime/velDist is really big multiple collision tiles could be skipped over
-	Can test this by holding and dragging the window a bit, no update will happen and dt will
-	get really big */
-	CollisionInfo ci{ m_pLevel->MovePhysicsRect(m_Bounds, m_Vel, dt) };
+	if (m_State != prevState)
+		InitialiseState(input);
 
-	//Wall detection with wider bounds to detect wall collision within a certain distance
-	Rectf wallDetectionBounds{ m_Bounds.left - m_MaxDistFromWallToWallJump, m_Bounds.bottom + m_Bounds.height / 3, m_Bounds.width + 2 * m_MaxDistFromWallToWallJump, m_Bounds.height / 3 };
-	CollisionInfo wallDetectionCI{ m_pLevel->DetectRectCollision(wallDetectionBounds, true, false) };
+	UpdateState(dt, input);
 
-	//Update state bools
-	m_OnGround = m_Vel.y <= 0.f && ci.collDir.down;
-	m_AgainstWall = wallDetectionCI.collDir.x;
-	m_AgainstRightWall = wallDetectionCI.collDir.right;
-	m_AgainstLeftWall = wallDetectionCI.collDir.left;
-	if (m_AgainstWall)
+	std::cout << "State: " << m_pStateInfo->name << std::endl;
+}
+
+void Madeline::CollisionInfoResponse(int idx, const CollisionInfo& ci)
+{
+	switch (CollisionRectNames(idx))
 	{
-		if (m_AgainstRightWall)
-			m_DistFromWall = m_MaxDistFromWallToWallJump - wallDetectionCI.right.entryDist;
-		else
-			m_DistFromWall = m_MaxDistFromWallToWallJump - wallDetectionCI.left.entryDist;
+	case CollisionRectNames::Body:
+		m_OnGround = m_Vel.y <= 0.f && ci.collDir.down;
+		break;
+	case CollisionRectNames::WallDetection:
+		m_AgainstWall = ci.collDir.x;
+		m_AgainstRightWall = ci.collDir.right;
+		m_AgainstLeftWall = ci.collDir.left;
+		if (m_AgainstWall)
+		{
+			float entryDist{ m_AgainstRightWall ? ci.right.entryDist : ci.left.entryDist };
+			m_DistFromWall = m_MaxDistFromWallToWallJump - entryDist;
+		}
+		else m_DistFromWall = m_MaxDistFromWallToWallJump + 1;
+		break;
 	}
-	else m_DistFromWall = m_MaxDistFromWallToWallJump + 1;
+}
 
-	m_CanJump = !input.jumping && (m_OnGround || m_AgainstWall);
-	if (m_Jumping && (m_Vel.y <= 0.f || m_OnGround))
-		m_Jumping = false;
-	if (!m_CanDash && !input.dashing && m_OnGround)
-		m_CanDash = true;
-	if (m_Dashing && m_Vel.x == m_pStateInfo->x->maxSpeed && m_Vel.y == m_pStateInfo->y->maxSpeed)
-		m_Dashing = false;
+Point2f Madeline::GetPosition() const
+{
+	return Point2f{ m_Bounds.left, m_Bounds.bottom };
 }
 
 void Madeline::SetState(const Game::InputActions& input)
 {
-	State prevState{ m_State };
 	if (m_CanDash && input.dashing)
 	{
 			m_CanDash = false;
@@ -216,7 +220,7 @@ void Madeline::SetState(const Game::InputActions& input)
 		else
 			m_State = State::EndingJump;
 	}
-	else if (m_DistFromWall == 0.f && input.grabbing) //Against the wall and grabbing
+	else if (m_Grabbing)
 	{
 		if (input.dir.y == 0) //Not moving up/down
 			m_State = State::WallGrabbing;
@@ -233,33 +237,42 @@ void Madeline::SetState(const Game::InputActions& input)
 		m_State = State::Falling;
 	else
 		m_State = State::Idle;
+}
 
+void Madeline::SetStateParameters(float dt, const Game::InputActions& input)
+{
+	float epsilon(0.5f); //in pixels
+	//Against the wall and grabbing
+	m_Grabbing = m_DistFromWall < epsilon && input.grabbing;
 
-	if (m_State == prevState)
-		return;
+	if (!m_OnGround && !m_Grabbing)
+		m_AirTime += dt;
+	else
+		m_AirTime = 0;
 
-	//To-Do: make section below cleaner/maybe wrap into separate function
+	//Can jump and not on ground or against wall or airTime > ledgeJumpTime will set m_CanJump = false or,
+	//Can't jump or no jump input but on ground or against wall will set m_CanJump = true
+	m_CanJump = (m_CanJump || !input.jumping) && (m_OnGround || m_AgainstWall) || (m_CanJump && m_AirTime <= m_LedgeJumpTime);
+	//m_Jumping will go from true to false if m_Jumping is true and vel <= 0 or m_OnGround
+	m_Jumping &= (m_Vel.y > 0.f && !m_OnGround);
+	//m_CanDash will go from false to true if no dash input and m_OnGround
+	m_CanDash |= (!input.dashing && m_OnGround);
+	//m_Dashing will go from true to false if vel x and y have reached the maxSpeed
+	m_Dashing &= !(m_Vel.x == m_pStateInfo->x->maxSpeed && m_Vel.y == m_pStateInfo->y->maxSpeed);
+}
 
-	//Update State info
+void Madeline::InitialiseState(const Game::InputActions& input)
+{
 	int stateIdx{ int(m_State) };
 	m_pStateInfo = &m_StateInfoArr[stateIdx];
 
-	//Apply boolean modifiers
-	if (!m_pStateInfo->x->useCurVelAsInitial)
-		m_Vel.x = m_pStateInfo->x->initVel;
-	int wallDir{ (m_AgainstRightWall) ? -1 : 1 };
-	if (m_pStateInfo->x->multiplyInitVelByWallDir)
-		m_Vel.x *= wallDir;
-	if (m_pStateInfo->x->multiplyInitVelByInputDir)
-		m_Vel.x *= input.dir.x;
-
-	if (!m_pStateInfo->y->useCurVelAsInitial)
-		m_Vel.y = m_pStateInfo->y->initVel;
-	if (m_pStateInfo->y->multiplyInitVelByInputDir)
-		m_Vel.y *= input.dir.y;
+	ApplyMovementParameters(m_TargetVel.x, m_Vel.x, m_Acc.x, *m_pStateInfo->x, input.dir.x);
+	ApplyMovementParameters(m_TargetVel.y, m_Vel.y, m_Acc.y, *m_pStateInfo->y, input.dir.y);
 
 	//Set the MultiSpriteSheet to the correct animation
 	m_pMultiSpriteSheet->SetSpriteSheetName(m_pStateInfo->animation);
+
+	// To-Do: clean up flipping texture part
 	//Flip texture if needed
 	if (input.dir.x != 0)
 	{
@@ -275,40 +288,33 @@ void Madeline::SetState(const Game::InputActions& input)
 	}
 }
 
-void Madeline::UpdateVel(float dt, float& vel, float& acc, float dir, MovementParameters& movementInfo)
-{
-	float targetVel{ movementInfo.maxSpeed };
-	if (movementInfo.allowDirChange)
-		targetVel *= dir;
-	if (vel != targetVel)
-	{
-		//Point acc in direction of targetVel
-		if (targetVel > 0.f || (targetVel == 0.f && vel < 0.f))
-			acc = std::abs(movementInfo.acc);
-		else // if (targetVel < 0.f || (targetVel == 0.f && vel > 0.f))
-			acc = -std::abs(movementInfo.acc);
-
-		vel += acc * dt;
-		if ((acc > 0.f && vel > targetVel) || (acc < 0.f && vel < targetVel))
-			vel = targetVel;
-	}
-}
-
-void Madeline::UpdateMultiSpriteSheet(float dt)
+void Madeline::UpdateState(float dt, const Game::InputActions& input)
 {
 	if (m_pStateInfo->x->allowDirChange)
 	{
-		bool flipX{ false };
-		if (m_AgainstLeftWall)
-			flipX = true;
-		if (m_Acc.x < 0)
-			flipX = true;
+		m_TargetVel.x = m_pStateInfo->x->maxSpeed * input.dir.x;
+		bool flipX{ m_AgainstLeftWall || m_Acc.x < 0 };
 		m_pMultiSpriteSheet->Flip(flipX);
 	}
+
+	if (m_pStateInfo->y->allowDirChange)
+		m_TargetVel.y = m_pStateInfo->y->maxSpeed * input.dir.y;
+
 	m_pMultiSpriteSheet->Update(dt);
 }
 
-Point2f Madeline::GetPosition() const
+void Madeline::ApplyMovementParameters(float& targetVel, float& vel, float& acc, MovementParameters& movementParameters, float inputDir)
 {
-	return Point2f{ m_Bounds.left, m_Bounds.bottom };
+	targetVel = movementParameters.maxSpeed;
+	acc = movementParameters.acc;
+
+	//Apply boolean modifiers
+	if (movementParameters.SetInitVel)
+		vel = movementParameters.initVel;
+
+	int wallDir{ (m_AgainstRightWall) ? -1 : 1 };
+	if (movementParameters.multiplyInitVelByWallDir)
+		vel *= wallDir;
+	else if (movementParameters.multiplyInitVelByInputDir)
+		vel *= inputDir;
 }

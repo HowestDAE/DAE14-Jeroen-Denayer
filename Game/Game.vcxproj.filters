@@ -45,7 +45,7 @@
     <ClCompile Include="MultiSpriteSheet.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="PhysicsRect.cpp">
+    <ClCompile Include="PhysicsBody.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -77,7 +77,7 @@
     <ClInclude Include="MultiSpriteSheet.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="PhysicsRect.h">
+    <ClInclude Include="PhysicsBody.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

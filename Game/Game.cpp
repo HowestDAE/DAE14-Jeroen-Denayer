@@ -33,7 +33,8 @@ Game::Game( const Window& window )
 	m_pCamera = new Camera(m_GameData.RENDER_RES_X, m_GameData.RENDER_RES_Y);
 
 	Point2f pos{ 8 * 8, 2 * 8 };
-	m_pMadeline = new Madeline(pos, madelinePixWidth, madelinePixHeight, m_pActiveLvl);
+	m_pMadeline = new Madeline(pos, madelinePixWidth, madelinePixHeight);
+	m_pActiveLvl->AddPhysicsBody(*m_pMadeline);
 }
 
 Game::~Game( )
@@ -81,12 +82,12 @@ void Game::Update( float elapsedSec )
 		input.dashing = true;
 		
 	m_pMadeline->Update(elapsedSec, input);
-	Point2f pos{ m_pMadeline->GetPosition() };
+	m_pActiveLvl->Update(elapsedSec);
 }
 
 void Game::Draw( ) const
 {
-	ClearBackground( );
+	ClearBackground();
 	//Upscale to screen resolution
 	glPushMatrix();
 	glScalef(m_GameData.RES_SCALE_X, m_GameData.RES_SCALE_Y, 1);
@@ -98,13 +99,6 @@ void Game::Draw( ) const
 
 	m_pCamera->Reset();
 	glPopMatrix(); //Release upscaling matrix
-
-	//Debug lines
-	utils::SetColor(Color4f{ 1.f, 0.f, 0.f, 1.f });
-	float x{ m_GameData.RES_SCALE_X * m_GameData.RENDER_RES_X };
-	float y{ m_GameData.RES_SCALE_Y * m_GameData.RENDER_RES_Y };
-	utils::DrawLine(Point2f{ x, 0.f }, Point2f{ x, y }, 3.f);
-	utils::DrawLine(Point2f{ 0.f, y }, Point2f{ x, y }, 3.f);
 }
 
 void Game::ProcessKeyDownEvent( const SDL_KeyboardEvent & e )

@@ -1,17 +1,19 @@
 #include "pch.h"
 #include "Level.h"
 #include "Texture.h"
+#include "PhysicsBody.h""
 
 Level::Level()
 	: m_TileSize{ 8 }
 	, m_PixPerM{ 8 }
+	, m_pPhysicsBodies{ std::vector<PhysicsBody*>{} }
 {
 	LoadLevel("level_01.bmp");
 }
 
 Level::~Level()
 {
-	for (Texture* pTexture : m_pTexturesArr)
+	for (Texture* pTexture : m_pTextures)
 		delete pTexture;
 }
 
@@ -28,9 +30,9 @@ void Level::Draw() const
 			if (ID >= 0 && ID < m_IDToTextureIdxArr.size())
 			{
 				int textureIdx{ m_IDToTextureIdxArr[ID] };
-				if (textureIdx >= 0 && textureIdx < m_pTexturesArr.size())
+				if (textureIdx >= 0 && textureIdx < m_pTextures.size())
 				{
-					Texture* pTexture{ m_pTexturesArr[textureIdx] };
+					Texture* pTexture{ m_pTextures[textureIdx] };
 					if (pTexture)
 					{
 						Rectf srcRect{ 0.f, 0.f, float(m_TileSize), float(m_TileSize) };
@@ -71,6 +73,29 @@ void Level::Draw() const
 	}
 }
 
+void Level::Update(float dt)
+{
+	for (PhysicsBody* pPhysicsBody : m_pPhysicsBodies)
+	{
+		pPhysicsBody->Update(dt);
+		CollisionInfo bodyCI{ MovePhysicsRect(pPhysicsBody->m_Bounds, pPhysicsBody->m_Vel, dt) };
+		pPhysicsBody->CollisionInfoResponse(0, bodyCI);
+
+		for (int i{}; i < pPhysicsBody->m_OverlapRects.size(); i++)
+		{
+			Rectf& overlapRect{ pPhysicsBody->m_OverlapRects[i] };
+			overlapRect += bodyCI.movedDist;
+			CollisionInfo overlapCI{ DetectRectCollision(overlapRect) };
+			pPhysicsBody->CollisionInfoResponse(i + 1, overlapCI); // + 1 because 0 is ALWAYS the collision body
+		}
+	}
+}
+
+void Level::AddPhysicsBody(PhysicsBody& physicsBody)
+{
+	m_pPhysicsBodies.push_back(&physicsBody);
+}
+
 int Level::GetTileID(TileIdx tileIdx) const
 {
 	return GetTileID(tileIdx.r, tileIdx.c);
@@ -105,6 +130,7 @@ The velocity is also modified!!
 */
 CollisionInfo Level::MovePhysicsRect(Rectf& bounds, Vector2f& vel, float time) const
 {
+	Point2f prevPos{ bounds.left, bounds.bottom };
 	CollisionInfo ci{ DetectRectCollision(bounds, true, true, vel, time, true) };
 
 	//Set position and vel based on collision information
@@ -131,6 +157,9 @@ CollisionInfo Level::MovePhysicsRect(Rectf& bounds, Vector2f& vel, float time) c
 	}
 	else
 		bounds.bottom += vel.y * m_PixPerM * time;
+
+	Point2f newPos{ bounds.left, bounds.bottom };
+	ci.movedDist = Point2f{ newPos.x - prevPos.x, newPos.y - prevPos.y };
 
 	return ci;
 }
@@ -179,7 +208,7 @@ bool Level::LoadLevel(const std::string& name)
 		Texture* pTexture{ new Texture(textureName) };
 		if (!pTexture)
 			std::cout << "Couldn't load " << textureName << std::endl;
-		m_pTexturesArr.push_back(pTexture);
+		m_pTextures.push_back(pTexture);
 	}
 
 	m_IDToTextureIdxArr = std::vector<int>{-1, 0, 0, 1};

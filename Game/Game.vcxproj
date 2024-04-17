@@ -156,7 +156,7 @@ xcopy "$(SolutionDir)Resources\*.*" "$(TargetDir)" /y /d /s</Command>
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MultiSpriteSheet.cpp" />
     <ClCompile Include="pch.cpp" />
-    <ClCompile Include="PhysicsRect.cpp" />
+    <ClCompile Include="PhysicsBody.cpp" />
     <ClCompile Include="ResourceManager.cpp" />
     <ClCompile Include="SpriteSheet.cpp" />
   </ItemGroup>
@@ -168,7 +168,7 @@ xcopy "$(SolutionDir)Resources\*.*" "$(TargetDir)" /y /d /s</Command>
     <ClInclude Include="Madeline.h" />
     <ClInclude Include="MultiSpriteSheet.h" />
     <ClInclude Include="pch.h" />
-    <ClInclude Include="PhysicsRect.h" />
+    <ClInclude Include="PhysicsBody.h" />
     <ClInclude Include="ResourceManager.h" />
     <ClInclude Include="SpriteSheet.h" />
   </ItemGroup>

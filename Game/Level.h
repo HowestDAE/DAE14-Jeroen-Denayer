@@ -4,6 +4,7 @@
 
 //Forward declarations
 class Texture;
+class PhysicsBody;
 
 class Level final
 {
@@ -12,6 +13,8 @@ public:
 	~Level();
 
 	void Draw() const;
+	void Update(float dt);
+	void AddPhysicsBody(PhysicsBody& physicsBody);
 	int GetTileID(TileIdx tileIdx) const;
 	int GetTileID(int row, int col) const;
 	CollisionInfo DetectRectCollision(const Rectf& bounds, bool checkXDir = true, bool checkYDir = true, const Vector2f& vel = Vector2f{}, float time = 0.f, bool checkVelDir = false) const;
@@ -36,8 +39,9 @@ private:
 	float m_Width;
 	float m_Height;
 	int m_PixPerM;
-	std::vector<Texture*> m_pTexturesArr;
+	std::vector<Texture*> m_pTextures;
 	std::vector<int> m_IDToTextureIdxArr;
 	std::vector< std::vector<uint8_t> > m_Data;
+	std::vector<PhysicsBody*> m_pPhysicsBodies;
 };
 
