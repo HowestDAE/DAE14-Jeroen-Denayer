@@ -1,47 +1,36 @@
 #pragma once
 #include <vector>
-#include "Game.h"
+#include <unordered_map>
+#include "LevelScreen.h"
 
 //Forward declarations
-class Texture;
 class PhysicsBody;
+class Texture;
+class InputManager;
 
 class Level final
 {
 public:
-	Level();
+	Level(InputManager* pInputManager);
 	~Level();
 
 	void Draw() const;
 	void Update(float dt);
-	void AddPhysicsBody(PhysicsBody& physicsBody);
-	int GetTileID(TileIdx tileIdx) const;
-	int GetTileID(int row, int col) const;
-	CollisionInfo DetectRectCollision(const Rectf& bounds, bool checkXDir = true, bool checkYDir = true, const Vector2f& vel = Vector2f{}, float time = 0.f, bool checkVelDir = false) const;
-	CollisionInfo MovePhysicsRect(Rectf& bounds, Vector2f& vel, float time) const;
-	int GetWidth() const;
-	int GetHeight() const;
+	const LevelScreen* GetCurLevelScreen() const;
+	PhysicsBody* GetPhysicsBodyToTrack() const;
 private:
 	//Functions
-	bool LoadLevel(const std::string& name);
-	void FlipLevel();
-	CollisionDir GetCollisionDir(const Rectf& bounds, bool checkXDir = true, bool checkYDir = true, const Vector2f& velDist = Vector2f{}, float time = 0.f, bool checkVelDir = false) const;
-	void SetCollDirInfo(const Rectf& bounds, const Vector2f& velDist, CollisionInfo& ci) const;
-	bool CheckRowCollision(int row, int minCol, int maxCol) const;
-	bool CheckCollCollision(int col, int minRow, int maxRow) const;
-	uint8_t GetPixelID(const SDL_Surface* pSurface, int x, int y) const;
-	bool IsCollisionTile(TileIdx tileIdx) const;
+	void RemovingPhysicsBody(PhysicsBody* pPhysicsBody, const LevelScreen::Gate& gate);
 
 	//Members
-	int m_Rows;
-	int m_Cols;
-	int m_TileSize;
-	float m_Width;
-	float m_Height;
-	int m_PixPerM;
+	int m_CurLevelScreenDataIdx;
+	std::vector<LevelScreen::InitData> m_LevelScreensData;
+	LevelScreen* m_pCurLevelScreen;
+	LevelScreen* m_pPrevLevelScreen;
 	std::vector<Texture*> m_pTextures;
 	std::vector<int> m_IDToTextureIdxArr;
-	std::vector< std::vector<uint8_t> > m_Data;
-	std::vector<PhysicsBody*> m_pPhysicsBodies;
+	PhysicsBody* m_pPhysicsBodyToTrack;
+
+	friend void LevelScreen::Draw() const;
 };
 

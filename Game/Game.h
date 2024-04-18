@@ -3,9 +3,9 @@
 #include <vector>
 
 //Forward declarations
-class Madeline;
 class Level;
 class Camera;
+class InputManager;
 
 class Game final: public BaseGame
 {
@@ -27,14 +27,6 @@ public:
 	void ProcessMouseMotionEvent( const SDL_MouseMotionEvent& e ) override;
 	void ProcessMouseDownEvent( const SDL_MouseButtonEvent& e ) override;
 	void ProcessMouseUpEvent( const SDL_MouseButtonEvent& e ) override;
-
-	struct InputActions
-	{
-		Vector2i dir;
-		bool jumping;
-		bool grabbing;
-		bool dashing;
-	};
 
 	struct GameData
 	{
@@ -58,7 +50,7 @@ private:
 	GameData m_GameData;
 	Camera* m_pCamera;
 	Level* m_pActiveLvl;
-	Madeline* m_pMadeline;
+	InputManager* m_pInputManager;
 
 	bool m_LMBPressed;
 };

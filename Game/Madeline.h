@@ -5,7 +5,7 @@
 
 //Forward declarations
 class MultiSpriteSheet;
-struct Game::InputActions;
+class InputManager;
 
 class Madeline final
 	:public PhysicsBody
@@ -40,22 +40,22 @@ public:
 		MovementParameters* y;
 	};
 
-	explicit Madeline(Point2f pos, float width, float height);
-	~Madeline();
+	explicit Madeline(Point2f pos, float width, float height, InputManager* pInputManager);
+	virtual ~Madeline() override;
 
-	void Draw() const;
-	void Update(float dt, const Game::InputActions& input);
+	virtual void Draw() const override;
+	virtual void Update(float dt) override;
 	virtual void CollisionInfoResponse(int idx, const CollisionInfo& ci) override;
-	Point2f GetPosition() const;
 private:
 	//Functions
-	void SetState(const Game::InputActions& input);
-	void SetStateParameters(float dt, const Game::InputActions& input);
-	void InitialiseState(const Game::InputActions& input);
-	void UpdateState(float dt, const Game::InputActions& input);
+	void SetState();
+	void SetStateParameters(float dt);
+	void InitialiseState();
+	void UpdateState(float dt);
 	void ApplyMovementParameters(float& targetVel, float& vel, float& acc, MovementParameters& movementParameters, float inputDir);
 
 	//Members
+	InputManager* m_pInputManager;
 	MultiSpriteSheet* m_pMultiSpriteSheet;
 	State m_State;
 	StateInfo* m_pStateInfo;

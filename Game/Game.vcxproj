@@ -151,7 +151,9 @@ xcopy "$(SolutionDir)Resources\*.*" "$(TargetDir)" /y /d /s</Command>
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="CollisionEngine.cpp" />
     <ClCompile Include="Game.cpp" />
+    <ClCompile Include="InputManager.cpp" />
     <ClCompile Include="Level.cpp" />
+    <ClCompile Include="LevelScreen.cpp" />
     <ClCompile Include="Madeline.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="MultiSpriteSheet.cpp" />
@@ -164,7 +166,9 @@ xcopy "$(SolutionDir)Resources\*.*" "$(TargetDir)" /y /d /s</Command>
     <ClInclude Include="Camera.h" />
     <ClInclude Include="CollisionEngine.h" />
     <ClInclude Include="Game.h" />
+    <ClInclude Include="InputManager.h" />
     <ClInclude Include="Level.h" />
+    <ClInclude Include="LevelScreen.h" />
     <ClInclude Include="Madeline.h" />
     <ClInclude Include="MultiSpriteSheet.h" />
     <ClInclude Include="pch.h" />

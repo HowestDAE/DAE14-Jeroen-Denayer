@@ -10,7 +10,7 @@ PhysicsBody::PhysicsBody(const Rectf& bounds, int idx)
 {
 }
 
-void PhysicsBody::Update(float dt)
+void PhysicsBody::UpdatePhysics(float dt)
 {
 	if (m_Vel.x != m_TargetVel.x)
 		UpdateAxis(dt, m_TargetVel.x, m_Vel.x, m_Acc.x);
@@ -42,4 +42,9 @@ void PhysicsBody::SetMovement(const Vector2f& targetVel, const Vector2f& vel, co
 	m_Vel = vel;
 	m_TargetVel = targetVel;
 	m_Acc = acc;
+}
+
+Point2f PhysicsBody::GetPosition() const
+{
+	return Point2f{ m_Bounds.left, m_Bounds.bottom };
 }

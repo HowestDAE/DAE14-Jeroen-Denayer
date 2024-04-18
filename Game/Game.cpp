@@ -1,12 +1,14 @@
 #include "pch.h"
 #include "Game.h"
-#include "Madeline.h"
 #include "Camera.h"
 #include "Level.h"
+#include "PhysicsBody.h"
+#include "InputManager.h"
 
 Game::Game( const Window& window ) 
 	: BaseGame{ window }
-	, m_GameData{ GameData{} }
+	, m_GameData{}
+	, m_pInputManager{ new InputManager(m_SDLGameController) }
 	, m_LMBPressed{ false }
 {
 	Rectf vp{ GetViewPort() };
@@ -29,19 +31,15 @@ Game::Game( const Window& window )
 	m_GameData.RES_SCALE_Y = m_GameData.SCREEN_HEIGHT / m_GameData.RENDER_RES_Y;
 	m_GameData.PIX_PER_M = m_GameData.TILE_SIZE_PIX;
 
-	m_pActiveLvl = new Level();
+	m_pActiveLvl = new Level(m_pInputManager);
 	m_pCamera = new Camera(m_GameData.RENDER_RES_X, m_GameData.RENDER_RES_Y);
-
-	Point2f pos{ 8 * 8, 2 * 8 };
-	m_pMadeline = new Madeline(pos, madelinePixWidth, madelinePixHeight);
-	m_pActiveLvl->AddPhysicsBody(*m_pMadeline);
 }
 
 Game::~Game( )
 {
 	delete m_pCamera;
-	delete m_pMadeline;
 	delete m_pActiveLvl;
+	delete m_pInputManager;
 }
 
 void Game::Update( float elapsedSec )
@@ -52,36 +50,7 @@ void Game::Update( float elapsedSec )
 	//if (pKeyStates[SDL_SCANCODE_DOWN]) yAxis = -1.f;
 	//if (pKeyStates[SDL_SCANCODE_UP]) yAxis = 1.f;
 	//if (pKeyStates[SDL_SCANCODE_SPACE] || pKeyStates[SDL_SCANCODE_UP]) actions.push_back(Madeline::Action::Jumping);
-
-	//Check inputs
-	InputActions input{};
-
-	float deadZoneX{ 0.4f };
-	Sint16 xAxisSint16{ SDL_GameControllerGetAxis(m_SDLGameController, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTX) };
-	float xAxis{ float(xAxisSint16) / std::numeric_limits<Sint16>::max() };
-	if (xAxis < -deadZoneX) input.dir.x = -1.f;
-	else if (xAxis > deadZoneX) input.dir.x = 1.f;
-
-	float deadZoneY{ 0.8f };
-	Sint16 yAxisSint16{ SDL_GameControllerGetAxis(m_SDLGameController, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTY) };
-	float yAxis{ float(yAxisSint16) / std::numeric_limits<Sint16>::max() };
-	if (yAxis < -deadZoneY) input.dir.y = 1.f;
-	else if (yAxis > deadZoneY) input.dir.y = -1.f;
-
-	if (SDL_GameControllerGetButton(m_SDLGameController, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_A))
-		input.jumping = true;
-	if (SDL_GameControllerGetAxis(m_SDLGameController, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERRIGHT))
-	{
-		float deadZoneRightTrigger{ 0.5f };
-		Sint16 axisSint16{ SDL_GameControllerGetAxis(m_SDLGameController, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERRIGHT) };
-		float axis{ float(axisSint16) / std::numeric_limits<Sint16>::max() };
-		if (std::abs(axis) > deadZoneRightTrigger)
-			input.grabbing = true;
-	}
-	if (SDL_GameControllerGetButton(m_SDLGameController, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_RIGHTSHOULDER))
-		input.dashing = true;
-		
-	m_pMadeline->Update(elapsedSec, input);
+	m_pInputManager->Update();
 	m_pActiveLvl->Update(elapsedSec);
 }
 
@@ -92,10 +61,11 @@ void Game::Draw( ) const
 	glPushMatrix();
 	glScalef(m_GameData.RES_SCALE_X, m_GameData.RES_SCALE_Y, 1);
 
-	m_pCamera->Aim(m_pActiveLvl->GetWidth(), m_pActiveLvl->GetHeight(), m_pMadeline->GetPosition());
+	const LevelScreen* curLevelScreen{ m_pActiveLvl->GetCurLevelScreen() };
+	PhysicsBody* pMadeline{ m_pActiveLvl->GetPhysicsBodyToTrack() };
+	m_pCamera->Aim(curLevelScreen->GetWidth(), curLevelScreen->GetHeight(), pMadeline->GetPosition());
 
 	m_pActiveLvl->Draw();
-	m_pMadeline->Draw();
 
 	m_pCamera->Reset();
 	glPopMatrix(); //Release upscaling matrix
