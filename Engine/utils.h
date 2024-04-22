@@ -89,7 +89,9 @@ namespace utils
 	std::vector<Point2f> GetRectVertices(const Rectf& rect);
 	TileIdx GetTileIdxByPos(const Point2f& pos, int tileSize, bool offsetTop = false);
 	RectCornersTileIdx GetRectCornersTileIdx(const Rectf& rect, int tileSize);
+	Point2f GetTileIdxPos(TileIdx tileIdx, int tileSize);
 	Rectf GetTileRect(TileIdx tileIdx, int tileSize);
+	Rectf GetTileRect(TileIdx leftBottomIdx, TileIdx rightTopIdx, int tileSize);
 #pragma endregion RectFunctionality
 
 #pragma region PhysicsFunctionality

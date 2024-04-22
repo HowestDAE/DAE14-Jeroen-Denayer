@@ -44,7 +44,7 @@ void PhysicsBody::SetMovement(const Vector2f& targetVel, const Vector2f& vel, co
 	m_Acc = acc;
 }
 
-Point2f PhysicsBody::GetPosition() const
+Rectf PhysicsBody::GetBounds() const
 {
-	return Point2f{ m_Bounds.left, m_Bounds.bottom };
+	return m_Bounds;
 }

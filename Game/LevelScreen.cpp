@@ -2,22 +2,24 @@
 #include "LevelScreen.h"
 #include "Level.h"
 #include "Texture.h"
-#include "PhysicsBody.h""
+#include "PhysicsBody.h"
 
-LevelScreen::LevelScreen(const InitData& data, Level* pLevel)
-	: m_Name{ data.name }
-	, m_FilePath{ data.filePath }
-	, m_pLevel{ pLevel }
+LevelScreen::LevelScreen(const std::string& name, const InitData& initData)
+	: m_Name{ name }
+	, m_FilePath{ initData.filePath }
 	, m_TileSize{ 8 }
 	, m_PixPerM{ 8 }
-	, m_Gates{ data.gates }
 	, m_pPhysicsBodies{}
+	, m_pLevel{ initData.pLevel }
+	, m_pGates{ initData.pGates }
 {
 	Load(m_FilePath);
 }
 
 LevelScreen::~LevelScreen()
 {
+	for (PhysicsBody* pPhysicsBody : m_pPhysicsBodies)
+		delete pPhysicsBody;
 }
 
 void LevelScreen::Draw() const
@@ -32,7 +34,7 @@ void LevelScreen::Draw() const
 			float y{ float(r * m_TileSize) };
 			if (ID >= 0 && ID < m_pLevel->m_IDToTextureIdxArr.size())
 			{
-				int textureIdx{ m_pLevel->m_IDToTextureIdxArr[ID] };
+				int textureIdx{ m_pLevel->m_IDToTextureIdxArr[ID]};
 				if (textureIdx >= 0 && textureIdx < m_pLevel->m_pTextures.size())
 				{
 					Texture* pTexture{ m_pLevel->m_pTextures[textureIdx] };
@@ -106,16 +108,44 @@ void LevelScreen::Update(float dt)
 			pPhysicsBody->CollisionInfoResponse(i + 1, overlapCI); // + 1 because 0 is ALWAYS the collision body
 		}
 
-		if (PhysicsBodyOverlapsGate(pPhysicsBody))
+		int gateIdx{ PhysicsBodyOverlapsGate(pPhysicsBody) };
+		if (gateIdx >= 0 && gateIdx < m_pGates->size())
+		{
 			it = m_pPhysicsBodies.erase(it);
+			/* Notify the level that a physicsBody was removed from this level via a certain gate,
+			level should take care of moving the physicsBody to another levelScreen or delete it */
+			bool movedToNewLevel = m_pLevel->TransferPhysicsBody(pPhysicsBody, m_pGates->at(gateIdx));
+			if (movedToNewLevel)
+			{
+				//The class instance was removed because the player moved to another level
+				return;
+			}
+		}
 		else
+		{
 			++it;
+		}
 	}
 }
 
-void LevelScreen::AddPhysicsBody(PhysicsBody* physicsBody)
+void LevelScreen::AddPhysicsBody(PhysicsBody* pPhysicsBody)
 {
-	m_pPhysicsBodies.push_back(physicsBody);
+	m_pPhysicsBodies.push_back(pPhysicsBody);
+}
+
+void LevelScreen::AddPhysicsBodyThroughGate(PhysicsBody* pPhysicsBody, const Gate& gate)
+{
+	AddPhysicsBody(pPhysicsBody);
+	Rectf gateRect{ GetGateRect(gate) };
+	Point2f spawnPos{ gateRect.left, gateRect.bottom };
+	bool IsGateVertical{ int(gate.side) % 2 == 0 };
+	if (IsGateVertical)
+		spawnPos.x += (gate.side == Gate::Side::Right) ? -(pPhysicsBody->m_Bounds.width + m_TileSize) : m_TileSize;
+	else
+		spawnPos.y += (gate.side == Gate::Side::Top) ? -(pPhysicsBody->m_Bounds.height + m_TileSize) : m_TileSize;
+
+	pPhysicsBody->m_Bounds.left = spawnPos.x;
+	pPhysicsBody->m_Bounds.bottom = spawnPos.y;
 }
 
 int LevelScreen::GetTileID(TileIdx tileIdx) const
@@ -370,18 +400,41 @@ bool LevelScreen::IsCollisionTile(TileIdx tileIdx) const
 	return tileID > 1;
 }
 
-bool LevelScreen::PhysicsBodyOverlapsGate(PhysicsBody* pPhysicsBody)
+int LevelScreen::PhysicsBodyOverlapsGate(PhysicsBody* pPhysicsBody)
 {
-	//for (const Gate& gate : m_Gates)
-	//{
-	//	int row{ (gate.orientation == Gate::Orientation::Vertical) ? 0 : gate.startIdx };
-	//	int col{ (gate.orientation == Gate::Orientation::Horizontal) ? gate.startIdx : 0 };
-	//	//Rectf gateRect{ utils::GetTileRect(gate.) };
-	//	//utils::IsOverlapping()
-	//}
-	//call m_pLevel->RemovingPhysicsBody(pPhysicsBody);
+	for (int gateIdx{}; gateIdx < m_pGates->size(); ++gateIdx)
+	{
+		Gate& gate{ m_pGates->at(gateIdx) };
+		Rectf gateRect{ GetGateRect(gate) };
+		if (utils::IsOverlapping(pPhysicsBody->GetBounds(), gateRect))
+			return gateIdx;
+	}
 
-	return false;
+	return -1;
+}
+
+Rectf LevelScreen::GetGateRect(const Gate& gate)
+{
+	TileIdx gateStartIdx{};
+	switch (gate.side)
+	{
+	case Gate::Side::Left: case Gate::Side::Right:
+		gateStartIdx.r = gate.startIdx;
+		gateStartIdx.c = (gate.side == Gate::Side::Left) ? 0 : m_Cols;
+		break;
+	case Gate::Side::Top: case Gate::Side::Bottom:
+		gateStartIdx.r = (gate.side == Gate::Side::Bottom) ? 0 : m_Rows;
+		gateStartIdx.c = gate.startIdx;
+		break;
+	}
+
+	TileIdx gateEndIdx{ gateStartIdx };
+	bool IsGateVertical{ int(gate.side) % 2 == 0 };
+	if (IsGateVertical)
+		gateEndIdx.c += gate.length;
+	else
+		gateEndIdx.r += gate.length;
+	return Rectf{ utils::GetTileRect(gateStartIdx, gateEndIdx, m_TileSize) };
 }
 
 uint8_t LevelScreen::GetPixelID(const SDL_Surface* pSurface, int x, int y) const

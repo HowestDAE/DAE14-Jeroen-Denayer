@@ -2,8 +2,8 @@
 #include "Game.h"
 #include "Camera.h"
 #include "Level.h"
-#include "PhysicsBody.h"
 #include "InputManager.h"
+#include "Test.h"
 
 Game::Game( const Window& window ) 
 	: BaseGame{ window }
@@ -31,8 +31,8 @@ Game::Game( const Window& window )
 	m_GameData.RES_SCALE_Y = m_GameData.SCREEN_HEIGHT / m_GameData.RENDER_RES_Y;
 	m_GameData.PIX_PER_M = m_GameData.TILE_SIZE_PIX;
 
-	m_pActiveLvl = new Level(m_pInputManager);
 	m_pCamera = new Camera(m_GameData.RENDER_RES_X, m_GameData.RENDER_RES_Y);
+	m_pActiveLvl = new Level(m_pInputManager, m_pCamera);
 }
 
 Game::~Game( )
@@ -60,10 +60,6 @@ void Game::Draw( ) const
 	//Upscale to screen resolution
 	glPushMatrix();
 	glScalef(m_GameData.RES_SCALE_X, m_GameData.RES_SCALE_Y, 1);
-
-	const LevelScreen* curLevelScreen{ m_pActiveLvl->GetCurLevelScreen() };
-	PhysicsBody* pMadeline{ m_pActiveLvl->GetPhysicsBodyToTrack() };
-	m_pCamera->Aim(curLevelScreen->GetWidth(), curLevelScreen->GetHeight(), pMadeline->GetPosition());
 
 	m_pActiveLvl->Draw();
 

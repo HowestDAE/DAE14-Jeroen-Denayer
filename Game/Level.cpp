@@ -2,32 +2,40 @@
 #include "Level.h"
 #include "Texture.h"
 #include "Madeline.h"
+#include "Camera.h"
 
-Level::Level(InputManager* pInputManager)
-	: m_pCurLevelScreen{ nullptr }
-	, m_pPrevLevelScreen{ nullptr }
+Level::Level(InputManager* pInputManager, Camera* pCamera)
+	: m_pCamera{ pCamera }
+	, m_pCurLevelScreen{ nullptr }
 {
-	m_LevelScreensData = std::vector<LevelScreen::InitData>{
-		{"MainRoom", "Textures/Levels/MainRoom.bmp",
-			std::vector<LevelScreen::Gate>{
-				{"SmallRoom", 0, LevelScreen::Gate::Orientation::Vertical, LevelScreen::Gate::Side::Left, 6, 3}
+	m_LevelScreensData = std::unordered_map<std::string, LevelScreenData>{
+		{"MainRoom", 
+			{
+				"Textures/Levels/MainRoom.bmp",
+				std::vector<LevelScreen::Gate>{
+					{"SmallRoom", 0, LevelScreen::Gate::Side::Left, 6, 3},
+					{"SmallRoom", 1, LevelScreen::Gate::Side::Left, 50, 3},
+				}
 			}
 		},
-		{"SmallRoom", "Textures/Levels/SmallRoom.bmp",
-			std::vector<LevelScreen::Gate>{
-				{"MainRoom", 0, LevelScreen::Gate::Orientation::Vertical, LevelScreen::Gate::Side::Right, 25, 3}
+		{"SmallRoom",
+			{
+				"Textures/Levels/SmallRoom.bmp",
+				std::vector<LevelScreen::Gate>{
+					{"MainRoom", 0, LevelScreen::Gate::Side::Right, 2, 3},
+					{"MainRoom", 1, LevelScreen::Gate::Side::Right, 25, 3},
+				}
 			}
 		},
 	};
-	m_CurLevelScreenDataIdx = 0;
-	m_pCurLevelScreen = new LevelScreen(m_LevelScreensData[m_CurLevelScreenDataIdx], this);
+	LoadLevel("MainRoom");
 
 	Point2f pos{ 8 * 8, 2 * 8 };
 	float madelinePixWidth{ 8 };
 	float madelinePixHeight{ 16 };
 	Madeline* pMadeline{ new Madeline(pos, madelinePixWidth, madelinePixHeight, pInputManager) };
 	m_pCurLevelScreen->AddPhysicsBody(pMadeline);
-	m_pPhysicsBodyToTrack = pMadeline;
+	m_pPlayer = pMadeline;
 
 	//Load textures needed for this level
 	//Hardcoded atm, should be changed
@@ -48,7 +56,6 @@ Level::Level(InputManager* pInputManager)
 Level::~Level()
 {
 	delete m_pCurLevelScreen;
-	delete m_pPrevLevelScreen;
 
 	for (Texture* pTexture : m_pTextures)
 		delete pTexture;
@@ -56,6 +63,10 @@ Level::~Level()
 
 void Level::Draw() const
 {
+	Rectf playerBounds{ m_pPlayer->GetBounds() };
+	Point2f pos{ playerBounds.left + playerBounds.width / 2, playerBounds.bottom + playerBounds.height / 2 };
+	Camera::TrackingInfo trackignInfo{ m_pCurLevelScreen->GetWidth(), m_pCurLevelScreen->GetHeight(), pos };
+	m_pCamera->Aim(trackignInfo);
 	m_pCurLevelScreen->Draw();
 }
 
@@ -64,18 +75,56 @@ void Level::Update(float dt)
 	m_pCurLevelScreen->Update(dt);
 }
 
-const LevelScreen* Level::GetCurLevelScreen() const
+void Level::LoadLevel(const std::string& name)
 {
-	return m_pCurLevelScreen;;
+	if (m_pCurLevelScreen) //delete existing levelScreen
+		delete m_pCurLevelScreen;
+
+	//Combine all data that the levelScreen will need into a single struct
+	LevelScreen::InitData initData{ m_LevelScreensData[name].filePath, this, &m_LevelScreensData[name].gates };
+	//Load new level
+	m_pCurLevelScreen = new LevelScreen(name, initData);
 }
 
-PhysicsBody* Level::GetPhysicsBodyToTrack() const
+/*
+If the physicsBody is not the player, the physicsBody will be removed
+If the physcisBody is the player and there is valid new valid level to move to,
+then the old level is deleted, the new level is instantiated, and the player is moved
+to this new level
+Return: true if the player moved to a new level, otherwise false
+*/
+bool Level::TransferPhysicsBody(PhysicsBody* pPhysicsBody, const LevelScreen::Gate& srcGate)
 {
-	return m_pPhysicsBodyToTrack;
+	bool movedToNewLevel{};
+	if (pPhysicsBody == m_pPlayer) 
+	{
+		std::unordered_map<std::string, LevelScreenData>::iterator it{ m_LevelScreensData.find(srcGate.connectedLevelScreenName) };
+		if (it != m_LevelScreensData.end()) //found level
+		{
+			const std::string& nextLevelScreenName{ it->first };
+			const LevelScreenData& nextLevelScreenInitData{ it->second };
+
+			//check if a matching gate exists
+			std::vector<LevelScreen::Gate>& nextLevelScreenGates{ m_LevelScreensData[nextLevelScreenName].gates };
+			if (srcGate.dstGateIdx >= 0 && srcGate.dstGateIdx < nextLevelScreenGates.size()) //connectedGateIdx maps to an existing gate
+			{
+				LevelScreen::Gate& dstGate{ nextLevelScreenGates[srcGate.dstGateIdx] };
+				//check if the dstGate is on the opposite side and with equal length to the srcGate
+				bool srcGateIsVertical{ int(srcGate.side) % 2 == 0 };
+				bool dstGateIsVertical{ int(dstGate.side) % 2 == 0 };
+				if (srcGateIsVertical == dstGateIsVertical && srcGate.side != dstGate.side && srcGate.length == dstGate.length)
+				{
+					LoadLevel(nextLevelScreenName);
+					//Transfer the player to this new level via the dstGate
+					m_pCurLevelScreen->AddPhysicsBodyThroughGate(pPhysicsBody, dstGate);
+					movedToNewLevel = true;
+				}
+			}
+		}
+	}
+	
+	if (!movedToNewLevel)
+		delete pPhysicsBody;
+
+	return movedToNewLevel;
 }
-
-void Level::RemovingPhysicsBody(PhysicsBody* pPhysicsBody, const LevelScreen::Gate& gate)
-{
-
-}
-

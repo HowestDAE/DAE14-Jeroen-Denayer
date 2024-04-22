@@ -7,30 +7,36 @@
 class PhysicsBody;
 class Texture;
 class InputManager;
+class Camera;
 
 class Level final
 {
 public:
-	Level(InputManager* pInputManager);
+	struct LevelScreenData
+	{
+		std::string filePath;
+		std::vector<LevelScreen::Gate> gates;
+	};
+
+	Level(InputManager* pInputManager, Camera* pCamera);
 	~Level();
 
 	void Draw() const;
 	void Update(float dt);
-	const LevelScreen* GetCurLevelScreen() const;
-	PhysicsBody* GetPhysicsBodyToTrack() const;
 private:
 	//Functions
-	void RemovingPhysicsBody(PhysicsBody* pPhysicsBody, const LevelScreen::Gate& gate);
+	void LoadLevel(const std::string& name);
+	bool TransferPhysicsBody(PhysicsBody* pPhysicsBody, const LevelScreen::Gate& srcGate);
 
 	//Members
-	int m_CurLevelScreenDataIdx;
-	std::vector<LevelScreen::InitData> m_LevelScreensData;
+	Camera* m_pCamera;
+	std::unordered_map<std::string, LevelScreenData> m_LevelScreensData;
 	LevelScreen* m_pCurLevelScreen;
-	LevelScreen* m_pPrevLevelScreen;
 	std::vector<Texture*> m_pTextures;
 	std::vector<int> m_IDToTextureIdxArr;
-	PhysicsBody* m_pPhysicsBodyToTrack;
+	PhysicsBody* m_pPlayer;
 
 	friend void LevelScreen::Draw() const;
+	friend void LevelScreen::Update(float dt);
 };
 

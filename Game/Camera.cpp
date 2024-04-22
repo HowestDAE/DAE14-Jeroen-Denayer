@@ -9,14 +9,14 @@ Camera::Camera(float screenW, float screenH)
 {
 }
 
-void Camera::Aim(float levelW, float levelH, const Point2f center)
+void Camera::Aim(const TrackingInfo& info)
 {
 	//Center the camera on the player in x and y
-	Point2f bottomLeft{ center.x - m_ScreenW / 2, center.y - m_ScreenH / 2 };
+	Point2f bottomLeft{ info.center.x - m_ScreenW / 2, info.center.y - m_ScreenH / 2 };
 	if (bottomLeft.x < 0) bottomLeft.x = 0.f;
-	else if (bottomLeft.x + m_ScreenW > levelW) bottomLeft.x = levelW - m_ScreenW;
+	else if (bottomLeft.x + m_ScreenW > info.levelWidth) bottomLeft.x = info.levelWidth - m_ScreenW;
 	if (bottomLeft.y < 0) bottomLeft.y = 0.f;
-	else if (bottomLeft.y + m_ScreenH > levelH) bottomLeft.y = levelH - m_ScreenH;
+	else if (bottomLeft.y + m_ScreenH > info.levelHeight) bottomLeft.y = info.levelHeight - m_ScreenH;
 
 	m_Transform.Position = Vector2f{ -bottomLeft.x, -bottomLeft.y };
 	m_Transform.ApplyTransformation();

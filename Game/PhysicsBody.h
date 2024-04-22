@@ -14,7 +14,7 @@ public:
 	void AddOverlapRect(const Vector2f& offset, float width, float height);
 	void SetMovement(const Vector2f& targetVel, const Vector2f& vel, const Vector2f& acc);
 	virtual void CollisionInfoResponse(int idx, const CollisionInfo& ci) = 0;
-	Point2f GetPosition() const;
+	Rectf GetBounds() const;
 protected:
 	Rectf m_Bounds;
 	Vector2f m_Vel;
@@ -25,5 +25,6 @@ private:
 	void UpdateAxis(float dt, float& targetVel, float& vel, float& acc);
 
 	friend void LevelScreen::Update(float dt);
+	friend 	void LevelScreen::AddPhysicsBodyThroughGate(PhysicsBody* pPhysicsBody, const Gate& gate);
 };
 

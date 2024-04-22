@@ -112,16 +112,16 @@ Madeline::Madeline(Point2f pos, float width, float height, InputManager* pInputM
 
 Madeline::~Madeline()
 {
-	delete m_pStateInfo;
+	delete m_pMultiSpriteSheet;
+	m_pMultiSpriteSheet = nullptr;
+
+	//Below not really necessary
+	m_pStateInfo = nullptr;
 	for (StateInfo& stateInfo : m_StateInfoArr)
 	{
-		delete stateInfo.x;
-		delete stateInfo.y;
 		stateInfo.x = nullptr;
 		stateInfo.y = nullptr;
 	}
-	delete m_pMultiSpriteSheet;
-	m_pMultiSpriteSheet = nullptr;
 }
 
 void Madeline::Draw() const

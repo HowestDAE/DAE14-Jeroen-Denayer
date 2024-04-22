@@ -775,11 +775,22 @@ RectCornersTileIdx utils::GetRectCornersTileIdx(const Rectf& rect, int tileSize)
 	return RectCornersTileIdx{ leftBottomIdx, leftTopIdx, rightTopIdx, rightBottomIdx };
 }
 
+Point2f utils::GetTileIdxPos(TileIdx tileIdx, int tileSize)
+{
+	return Point2f{ float(tileIdx.c * tileSize), float(tileIdx.r * tileSize) };
+}
+
 Rectf utils::GetTileRect(TileIdx tileIdx, int tileSize)
 {
-	int x{ tileIdx.c * tileSize };
-	int y{ tileIdx.r * tileSize };
-	return Rectf{ float(x), float(y), float(tileSize), float(tileSize) };
+	Point2f pos{ GetTileIdxPos(tileIdx, tileSize) };
+	return Rectf{ pos.x, pos.y, float(tileSize), float(tileSize) };
+}
+
+Rectf utils::GetTileRect(TileIdx leftBottomIdx, TileIdx rightTopIdx, int tileSize)
+{
+	Point2f leftBottom{ GetTileIdxPos(leftBottomIdx, tileSize) };
+	Point2f rightTop{ GetTileIdxPos(rightTopIdx, tileSize) };
+	return Rectf{ leftBottom.x, leftBottom.y, rightTop.x - leftBottom.x, rightTop.y - leftBottom.y };
 }
 
 /*
