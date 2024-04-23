@@ -8,6 +8,7 @@ PhysicsBody::PhysicsBody(const Rectf& bounds, int idx)
 	, m_Acc{ Vector2f{} }
 	, m_OverlapRects{ std::vector<Rectf>{} }
 {
+	std::cout << "PHysicsBody Constructor called" << std::endl;
 }
 
 void PhysicsBody::UpdatePhysics(float dt)
@@ -35,6 +36,19 @@ void PhysicsBody::UpdateAxis(float dt, float& targetVel, float& vel, float& acc)
 void PhysicsBody::AddOverlapRect(const Vector2f& offset, float width, float height)
 {
 	m_OverlapRects.push_back(Rectf{ offset.x, offset.y, width, height });
+}
+
+void PhysicsBody::SetPosition(const Point2f& pos)
+{
+	Point2f origPos{ m_Bounds.left, m_Bounds.bottom };
+	m_Bounds.left = pos.x;
+	m_Bounds.bottom = pos.y;
+	for (Rectf& rect : m_OverlapRects)
+	{
+		Point2f rectOffset{ rect.left - origPos.x, rect.bottom - origPos.y };
+		rect.left = m_Bounds.left + rectOffset.x;
+		rect.bottom = m_Bounds.bottom + rectOffset.y;
+	}
 }
 
 void PhysicsBody::SetMovement(const Vector2f& targetVel, const Vector2f& vel, const Vector2f& acc)

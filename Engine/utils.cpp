@@ -786,10 +786,15 @@ Rectf utils::GetTileRect(TileIdx tileIdx, int tileSize)
 	return Rectf{ pos.x, pos.y, float(tileSize), float(tileSize) };
 }
 
-Rectf utils::GetTileRect(TileIdx leftBottomIdx, TileIdx rightTopIdx, int tileSize)
+Rectf utils::GetTileAreaRect(TileIdx corner1, TileIdx corner2, int tileSize)
 {
-	Point2f leftBottom{ GetTileIdxPos(leftBottomIdx, tileSize) };
-	Point2f rightTop{ GetTileIdxPos(rightTopIdx, tileSize) };
+	int minRow{ std::min(corner1.r, corner2.r) };
+	int maxRow{ std::max(corner1.r, corner2.r) };
+	int minCol{ std::min(corner1.c, corner2.c) };
+	int maxCol{ std::max(corner1.c, corner2.c) };
+
+	Point2f leftBottom{ GetTileIdxPos(TileIdx{minRow, minCol}, tileSize)};
+	Point2f rightTop{ GetTileIdxPos(TileIdx{maxRow, maxCol}, tileSize)};
 	return Rectf{ leftBottom.x, leftBottom.y, rightTop.x - leftBottom.x, rightTop.y - leftBottom.y };
 }
 

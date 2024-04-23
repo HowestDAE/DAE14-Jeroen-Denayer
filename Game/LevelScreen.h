@@ -29,36 +29,49 @@ public:
 	{
 		const std::string& filePath;
 		Level* pLevel;
-		std::vector<LevelScreen::Gate>* pGates;
+		const std::vector<LevelScreen::Gate>& gates;
 	};
 
-	LevelScreen(const std::string& name, const InitData& initData);
+	explicit LevelScreen(const std::string& name, const InitData& initData);
 	~LevelScreen();
+	LevelScreen(const LevelScreen& other) = delete;
+	LevelScreen& operator=(const LevelScreen& other) = delete;
+	LevelScreen(LevelScreen&& other) = delete;
+	LevelScreen& operator=(LevelScreen&& other) = delete;
 
 	void Draw() const;
 	void Update(float dt);
+
 	void AddPhysicsBody(PhysicsBody* pPhysicsBody);
 	void AddPhysicsBodyThroughGate(PhysicsBody* pPhysicsBody, const Gate& gate);
-	int GetTileID(TileIdx tileIdx) const;
-	int GetTileID(int row, int col) const;
+
 	CollisionInfo DetectRectCollision(const Rectf& bounds, bool checkXDir = true, bool checkYDir = true, const Vector2f& vel = Vector2f{}, float time = 0.f, bool checkVelDir = false) const;
 	CollisionInfo MovePhysicsRect(Rectf& bounds, Vector2f& vel, float time) const;
+
 	int GetWidth() const;
 	int GetHeight() const;
 private:
 	//Functions
 	bool Load(const std::string& filePath);
+	uint8_t GetPixelID(const SDL_Surface* pSurface, int x, int y) const;
 	void FlipLevel();
+
 	CollisionDir GetCollisionDir(const Rectf& bounds, bool checkXDir = true, bool checkYDir = true, const Vector2f& velDist = Vector2f{}, float time = 0.f, bool checkVelDir = false) const;
 	void SetCollDirInfo(const Rectf& bounds, const Vector2f& velDist, CollisionInfo& ci) const;
 	bool CheckRowCollision(int row, int minCol, int maxCol) const;
 	bool CheckCollCollision(int col, int minRow, int maxRow) const;
-	uint8_t GetPixelID(const SDL_Surface* pSurface, int x, int y) const;
 	bool IsCollisionTile(TileIdx tileIdx) const;
 	int PhysicsBodyOverlapsGate(PhysicsBody* pPhysicsBody);
-	Rectf GetGateRect(const Gate& gate);
+
+	Rectf GetGateRect(const Gate& gate) const;
+	TileIdx GetTileIdxFromIdx(int idx) const;
+	int GetIdxFromTileIdx(TileIdx tileIdx) const;
+	int GetTileID(TileIdx tileIdx) const;
+	int GetTileID(int row, int col) const;
 
 	//Members
+	Level* m_pLevel; //association
+	
 	std::string m_Name;
 	std::string m_FilePath;
 	int m_Rows;
@@ -67,11 +80,8 @@ private:
 	float m_Width;
 	float m_Height;
 	int m_PixPerM;
-	std::vector< std::vector<uint8_t> > m_Data;
+	std::vector<uint8_t> m_Data;
 	std::vector<PhysicsBody*> m_pPhysicsBodies;
-
-	//Aggregated Members
-	Level* m_pLevel;
-	std::vector<Gate>* m_pGates;
+	std::vector<Gate> m_Gates;
 };
 

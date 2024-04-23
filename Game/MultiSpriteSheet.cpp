@@ -2,7 +2,7 @@
 #include "MultiSpriteSheet.h"
 #include "Texture.h"
 
-MultiSpriteSheet::MultiSpriteSheet(const std::string& texturePath, int rows, int cols, std::unordered_map<std::string, SpriteSheetInfo> spriteSheetMapping)
+MultiSpriteSheet::MultiSpriteSheet(const std::string& texturePath, int rows, int cols, const std::unordered_map<std::string, SpriteSheetInfo>& spriteSheetMapping)
 	: SpriteSheet(texturePath, rows, cols, 0, 0)
 	, m_Mapping{ spriteSheetMapping }
 	, m_CurrentSpriteSheetName{}
@@ -25,7 +25,8 @@ void MultiSpriteSheet::Update(float dt)
 
 void MultiSpriteSheet::SetSpriteSheetName(const std::string& name)
 {
-	if (name == m_CurrentSpriteSheetName) return;
+	if (name == m_CurrentSpriteSheetName)
+		return;
 
 	if (m_Mapping.find(name) == m_Mapping.end())
 	{

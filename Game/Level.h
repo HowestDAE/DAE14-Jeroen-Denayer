@@ -20,6 +20,10 @@ public:
 
 	Level(InputManager* pInputManager, Camera* pCamera);
 	~Level();
+	Level(const Level& other) = delete;
+	Level& operator=(const Level& other) = delete;
+	Level(Level&& other) = delete;
+	Level& operator=(Level&& other) = delete;
 
 	void Draw() const;
 	void Update(float dt);
@@ -29,12 +33,13 @@ private:
 	bool TransferPhysicsBody(PhysicsBody* pPhysicsBody, const LevelScreen::Gate& srcGate);
 
 	//Members
+	std::unordered_map<std::string, LevelScreenData> m_LevelScreensData; //TO-DO: LevelScreen should load/hold it's own data
 	Camera* m_pCamera;
-	std::unordered_map<std::string, LevelScreenData> m_LevelScreensData;
+	PhysicsBody* m_pPlayer;
 	LevelScreen* m_pCurLevelScreen;
+	//Shared data for all LevelScreens;
 	std::vector<Texture*> m_pTextures;
 	std::vector<int> m_IDToTextureIdxArr;
-	PhysicsBody* m_pPlayer;
 
 	friend void LevelScreen::Draw() const;
 	friend void LevelScreen::Update(float dt);

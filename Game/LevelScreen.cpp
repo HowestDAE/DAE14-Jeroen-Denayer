@@ -11,7 +11,7 @@ LevelScreen::LevelScreen(const std::string& name, const InitData& initData)
 	, m_PixPerM{ 8 }
 	, m_pPhysicsBodies{}
 	, m_pLevel{ initData.pLevel }
-	, m_pGates{ initData.pGates }
+	, m_Gates{ initData.gates }
 {
 	Load(m_FilePath);
 }
@@ -24,49 +24,42 @@ LevelScreen::~LevelScreen()
 
 void LevelScreen::Draw() const
 {
-	for (int r{ }; r < m_Data.size(); ++r)
+	for (int i{}; i < m_Data.size(); ++i)
 	{
-		for (int c{}; c < m_Data[r].size(); ++c)
+		TileIdx tileIdx{ GetTileIdxFromIdx(i) };
+		int ID{ m_Data[i] };
+		float x{ float(tileIdx.c * m_TileSize) };
+		float y{ float(tileIdx.r * m_TileSize) };
+		if (ID >= 0 && ID < m_pLevel->m_IDToTextureIdxArr.size())
 		{
-			TileIdx tileIdx{ r, c };
-			int ID{ m_Data[r][c] };
-			float x{ float(c * m_TileSize) };
-			float y{ float(r * m_TileSize) };
-			if (ID >= 0 && ID < m_pLevel->m_IDToTextureIdxArr.size())
+			int textureIdx{ m_pLevel->m_IDToTextureIdxArr[ID]};
+			if (textureIdx >= 0 && textureIdx < m_pLevel->m_pTextures.size())
 			{
-				int textureIdx{ m_pLevel->m_IDToTextureIdxArr[ID]};
-				if (textureIdx >= 0 && textureIdx < m_pLevel->m_pTextures.size())
+				Texture* pTexture{ m_pLevel->m_pTextures[textureIdx] };
+				if (pTexture)
 				{
-					Texture* pTexture{ m_pLevel->m_pTextures[textureIdx] };
-					if (pTexture)
-					{
-						Rectf srcRect{ 0.f, 0.f, float(m_TileSize), float(m_TileSize) };
-						Rectf dstRect{ utils::GetTileRect(tileIdx, m_TileSize) };
-						pTexture->Draw(dstRect, srcRect);
-					}
-					else //Draw pink rectangle, texture not properly loaded
-					{
-						utils::SetColor(Color4f{ 1.f, 0.f, 1.f, 1.f });
-						utils::FillRect(x, y, m_TileSize, m_TileSize);
-					}
+					Rectf srcRect{ 0.f, 0.f, float(m_TileSize), float(m_TileSize) };
+					Rectf dstRect{ utils::GetTileRect(tileIdx, m_TileSize) };
+					pTexture->Draw(dstRect, srcRect);
 				}
-				else //Draw black rectangle, ID specifically mapped to invalid texture
+				else //Draw pink rectangle, texture not properly loaded
 				{
-					utils::SetColor(Color4f{ 0.f, 0.f, 0.f, 1.f });
+					utils::SetColor(Color4f{ 1.f, 0.f, 1.f, 1.f });
 					utils::FillRect(x, y, m_TileSize, m_TileSize);
 				}
 			}
-			else //Draw red rectangle, ID not mapped to textureID in m_IDToTextureIdxArr
+			else //Draw black rectangle, ID specifically mapped to invalid texture
 			{
-				utils::SetColor(Color4f{ 1.f, 0.f, 0.f, 1.f });
+				utils::SetColor(Color4f{ 0.f, 0.f, 0.f, 1.f });
 				utils::FillRect(x, y, m_TileSize, m_TileSize);
 			}
 		}
+		else //Draw red rectangle, ID not mapped to textureID in m_IDToTextureIdxArr
+		{
+			utils::SetColor(Color4f{ 1.f, 0.f, 0.f, 1.f });
+			utils::FillRect(x, y, m_TileSize, m_TileSize);
+		}
 	}
-
-	//Draw PhysicsBodies
-	for (PhysicsBody* pPhysicsBody : m_pPhysicsBodies)
-		pPhysicsBody->Draw();
 
 	//Draw debug grid lines
 	utils::SetColor(Color4f{ 0.25f, 0.25f, 0.25f, 1.f });
@@ -80,6 +73,10 @@ void LevelScreen::Draw() const
 		float x{ float(col * m_TileSize) };
 		utils::DrawLine(Point2f{ x, 0.0f }, Point2f{ x, m_Height });
 	}
+
+	//Draw PhysicsBodies
+	for (PhysicsBody* pPhysicsBody : m_pPhysicsBodies)
+		pPhysicsBody->Draw();
 }
 
 void LevelScreen::Update(float dt)
@@ -108,13 +105,14 @@ void LevelScreen::Update(float dt)
 			pPhysicsBody->CollisionInfoResponse(i + 1, overlapCI); // + 1 because 0 is ALWAYS the collision body
 		}
 
+		//Check if pPhysicsBody overlaps with any of the gates in this level
 		int gateIdx{ PhysicsBodyOverlapsGate(pPhysicsBody) };
-		if (gateIdx >= 0 && gateIdx < m_pGates->size())
+		if (gateIdx >= 0 && gateIdx < m_Gates.size())
 		{
 			it = m_pPhysicsBodies.erase(it);
-			/* Notify the level that a physicsBody was removed from this level via a certain gate,
-			level should take care of moving the physicsBody to another levelScreen or delete it */
-			bool movedToNewLevel = m_pLevel->TransferPhysicsBody(pPhysicsBody, m_pGates->at(gateIdx));
+			//Notify the level that a physicsBody was removed from this level via a certain gate,
+			//level should take care of moving the physicsBody to another levelScreen or delete it
+			bool movedToNewLevel = m_pLevel->TransferPhysicsBody(pPhysicsBody, m_Gates[gateIdx]);
 			if (movedToNewLevel)
 			{
 				//The class instance was removed because the player moved to another level
@@ -144,19 +142,7 @@ void LevelScreen::AddPhysicsBodyThroughGate(PhysicsBody* pPhysicsBody, const Gat
 	else
 		spawnPos.y += (gate.side == Gate::Side::Top) ? -(pPhysicsBody->m_Bounds.height + m_TileSize) : m_TileSize;
 
-	pPhysicsBody->m_Bounds.left = spawnPos.x;
-	pPhysicsBody->m_Bounds.bottom = spawnPos.y;
-}
-
-int LevelScreen::GetTileID(TileIdx tileIdx) const
-{
-	return GetTileID(tileIdx.r, tileIdx.c);
-}
-
-int LevelScreen::GetTileID(int row, int col) const
-{	
-	if (row >= 0 && row < m_Rows && col >= 0 && col < m_Cols) return m_Data[row][col];
-	else return -1;
+	pPhysicsBody->SetPosition(spawnPos);
 }
 
 CollisionInfo LevelScreen::DetectRectCollision(const Rectf& bounds, bool checkXDir, bool checkYDir, const Vector2f& vel, float time, bool checkVelDir) const
@@ -226,9 +212,13 @@ int LevelScreen::GetHeight() const
 	return m_Rows * m_TileSize;
 }
 
+//##########################
+//Level Loading Functions
+//##########################
+
 bool LevelScreen::Load(const std::string& filePath)
 {
-	bool succes{};
+	bool succes{ false };
 	SDL_Surface* pSurface{ IMG_Load(filePath.c_str()) };
 	if (pSurface == nullptr)
 		return succes;
@@ -239,15 +229,13 @@ bool LevelScreen::Load(const std::string& filePath)
 	m_Width = float(m_Cols * m_TileSize);
 	m_Height = float(m_Rows * m_TileSize);
 	//Reserve only necessary space for level
-	m_Data = std::vector<std::vector<uint8_t>>(m_Rows, std::vector<uint8_t>(m_Cols));
+	m_Data = std::vector<uint8_t>(m_Rows * m_Cols);
 
-	for (int r{}; r < m_Rows; r++)
+	for (int i{}; i < m_Rows * m_Cols; ++i)
 	{
-		for (int c{}; c < m_Cols; c++)
-		{
-			uint8_t pixelID{ GetPixelID(pSurface, c, r) };
-			m_Data[r].insert(m_Data[r].begin() + c, pixelID);
-		}
+		TileIdx tileIdx{ GetTileIdxFromIdx(i) };
+		uint8_t pixelID{ GetPixelID(pSurface, tileIdx.c, tileIdx.r) };
+		m_Data[i] = pixelID;
 	}
 	FlipLevel();
 
@@ -256,28 +244,35 @@ bool LevelScreen::Load(const std::string& filePath)
 
 void LevelScreen::FlipLevel()
 {
-	std::vector< std::vector<uint8_t> > dataCopy{ m_Data };
-	for (int row{}; row < m_Data.size(); ++row)
+	for (int srcIdx{}; srcIdx < int(m_Rows * m_Cols / 2); ++srcIdx)
 	{
-		m_Data[row] = dataCopy[m_Data.size() - 1 - row];
+		int temp{ m_Data[srcIdx] };
+		TileIdx srcTileIdx{ GetTileIdxFromIdx(srcIdx) };
+		TileIdx dstTileIdx{ m_Rows - 1 - srcTileIdx.r, srcTileIdx.c };
+		int dstIdx{ GetIdxFromTileIdx(dstTileIdx) };
+		m_Data[srcIdx] = m_Data[dstIdx];
+		m_Data[dstIdx] = temp;
 	}
 }
 
-bool LevelScreen::CheckCollCollision(int col, int minRow, int maxRow) const
+uint8_t LevelScreen::GetPixelID(const SDL_Surface* pSurface, int x, int y) const
 {
-	for (int row{ minRow }; row < maxRow + 1; ++row)
-		if (IsCollisionTile(TileIdx{ row, col }))
-			return true;
-	return false;
+	// Bytes per pixel
+	const Uint8 Bpp = pSurface->format->BytesPerPixel;
+
+	/*
+	Retrieve the address to a specific pixel
+	pSurface->pixels	= an array containing the SDL_Surface' pixels
+	pSurface->pitch		= the length of a row of pixels (in bytes)
+	X and Y				= the offset on where on the image to retrieve the pixel, (0, 0) is in the upper left corner of the image
+	*/
+	Uint8* pPixel = (Uint8*)pSurface->pixels + y * pSurface->pitch + x * Bpp;
+	return *pPixel;
 }
 
-bool LevelScreen::CheckRowCollision(int row, int minCol, int maxCol) const
-{
-	for (int col{ minCol }; col < maxCol + 1; ++col)
-		if (IsCollisionTile(TileIdx{ row, col }))
-			return true;
-	return false;
-}
+//##########################
+//Collision Functions
+//##########################
 
 CollisionDir LevelScreen::GetCollisionDir(const Rectf& bounds, bool checkXDir, bool checkYDir, const Vector2f& velDist, float time, bool checkVelDir) const
 {
@@ -394,6 +389,22 @@ void LevelScreen::SetCollDirInfo(const Rectf& bounds, const Vector2f& velDist, C
 	}
 }
 
+bool LevelScreen::CheckRowCollision(int row, int minCol, int maxCol) const
+{
+	for (int col{ minCol }; col < maxCol + 1; ++col)
+		if (IsCollisionTile(TileIdx{ row, col }))
+			return true;
+	return false;
+}
+
+bool LevelScreen::CheckCollCollision(int col, int minRow, int maxRow) const
+{
+	for (int row{ minRow }; row < maxRow + 1; ++row)
+		if (IsCollisionTile(TileIdx{ row, col }))
+			return true;
+	return false;
+}
+
 bool LevelScreen::IsCollisionTile(TileIdx tileIdx) const
 {
 	int tileID{ GetTileID(tileIdx) };
@@ -402,18 +413,26 @@ bool LevelScreen::IsCollisionTile(TileIdx tileIdx) const
 
 int LevelScreen::PhysicsBodyOverlapsGate(PhysicsBody* pPhysicsBody)
 {
-	for (int gateIdx{}; gateIdx < m_pGates->size(); ++gateIdx)
+	int gateIdx{ -1 }; //invalid gate
+	for (int idx{}; idx < m_Gates.size(); ++idx)
 	{
-		Gate& gate{ m_pGates->at(gateIdx) };
+		Gate& gate{ m_Gates[idx] };
 		Rectf gateRect{ GetGateRect(gate) };
 		if (utils::IsOverlapping(pPhysicsBody->GetBounds(), gateRect))
-			return gateIdx;
+		{
+			gateIdx = idx;
+			break; //don't evaluate other gates
+		}
 	}
 
-	return -1;
+	return gateIdx;
 }
 
-Rectf LevelScreen::GetGateRect(const Gate& gate)
+//##########################
+//Utility Functions
+//##########################
+
+Rectf LevelScreen::GetGateRect(const Gate& gate) const
 {
 	TileIdx gateStartIdx{};
 	switch (gate.side)
@@ -431,23 +450,41 @@ Rectf LevelScreen::GetGateRect(const Gate& gate)
 	TileIdx gateEndIdx{ gateStartIdx };
 	bool IsGateVertical{ int(gate.side) % 2 == 0 };
 	if (IsGateVertical)
-		gateEndIdx.c += gate.length;
-	else
 		gateEndIdx.r += gate.length;
-	return Rectf{ utils::GetTileRect(gateStartIdx, gateEndIdx, m_TileSize) };
+	else
+		gateEndIdx.c += gate.length;
+	return Rectf{ utils::GetTileAreaRect(gateStartIdx, gateEndIdx, m_TileSize) };
+}
+ 
+TileIdx LevelScreen::GetTileIdxFromIdx(int idx) const
+{
+	TileIdx tileIdx{};
+	if (idx < 0 || idx >= m_Rows * m_Cols)
+		std::cout << "LevelScreen::GetRowAndCol(int idx): idx out of bounds" << std::endl;
+	else
+		tileIdx = TileIdx{ idx / m_Cols, idx % m_Cols };
+	return tileIdx;
 }
 
-uint8_t LevelScreen::GetPixelID(const SDL_Surface* pSurface, int x, int y) const
+int LevelScreen::GetIdxFromTileIdx(TileIdx tileIdx) const
 {
-	// Bytes per pixel
-	const Uint8 Bpp = pSurface->format->BytesPerPixel;
+	int idx{ -1 }; //invalid idx
+	if (tileIdx.r >= 0 && tileIdx.r < m_Rows && tileIdx.c >= 0 && tileIdx.c < m_Cols)
+		idx = tileIdx.r * m_Cols + tileIdx.c;
+	return idx;
+}
 
-	/*
-	Retrieve the address to a specific pixel
-	pSurface->pixels	= an array containing the SDL_Surface' pixels
-	pSurface->pitch		= the length of a row of pixels (in bytes)
-	X and Y				= the offset on where on the image to retrieve the pixel, (0, 0) is in the upper left corner of the image
-	*/
-	Uint8* pPixel = (Uint8*)pSurface->pixels + y * pSurface->pitch + x * Bpp;
-	return *pPixel;
+int LevelScreen::GetTileID(TileIdx tileIdx) const
+{
+	return GetTileID(tileIdx.r, tileIdx.c);
+}
+
+int LevelScreen::GetTileID(int row, int col) const
+{
+	int tileID{ -1 }; //invalid tileID
+	int idx{ GetIdxFromTileIdx(TileIdx{ row, col }) };
+	if (idx >= 0 && idx < m_Rows * m_Cols)
+		tileID = m_Data[idx];
+
+	return tileID;
 }

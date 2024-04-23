@@ -13,7 +13,7 @@ public:
 		float frameTime;
 	};
 
-	explicit MultiSpriteSheet(const std::string& texturePath, int rows, int cols, std::unordered_map<std::string, SpriteSheetInfo> spriteSheetMapping);
+	explicit MultiSpriteSheet(const std::string& texturePath, int rows, int cols, const std::unordered_map<std::string, SpriteSheetInfo>& spriteSheetMapping);
 	
 	virtual void Update(float dt) override;
 	void SetSpriteSheetName(const std::string& name);

@@ -8,6 +8,10 @@ class SpriteSheet
 public:
 	SpriteSheet(const std::string& texturePath, int rows, int cols, int numFrames, float frameTime);
 	virtual ~SpriteSheet();
+	SpriteSheet(const SpriteSheet& other) = delete;
+	SpriteSheet& operator=(const SpriteSheet& other) = delete;
+	SpriteSheet(SpriteSheet&& other) = delete;
+	SpriteSheet& operator=(SpriteSheet&& other) = delete;
 
 	void Draw(const Rectf& dstRect) const;
 	virtual void Update(float dt);

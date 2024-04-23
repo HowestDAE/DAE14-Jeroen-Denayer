@@ -8,10 +8,12 @@ Level::Level(InputManager* pInputManager, Camera* pCamera)
 	: m_pCamera{ pCamera }
 	, m_pCurLevelScreen{ nullptr }
 {
+	//Store data needed for loading all the levels
+	//To-DO: hardcoded atm, levelScreen should load it's own data from a file using only the levelScreenName
 	m_LevelScreensData = std::unordered_map<std::string, LevelScreenData>{
 		{"MainRoom", 
 			{
-				"Textures/Levels/MainRoom.bmp",
+				"Levels/MainRoom.bmp",
 				std::vector<LevelScreen::Gate>{
 					{"SmallRoom", 0, LevelScreen::Gate::Side::Left, 6, 3},
 					{"SmallRoom", 1, LevelScreen::Gate::Side::Left, 50, 3},
@@ -20,7 +22,7 @@ Level::Level(InputManager* pInputManager, Camera* pCamera)
 		},
 		{"SmallRoom",
 			{
-				"Textures/Levels/SmallRoom.bmp",
+				"Levels/SmallRoom.bmp",
 				std::vector<LevelScreen::Gate>{
 					{"MainRoom", 0, LevelScreen::Gate::Side::Right, 2, 3},
 					{"MainRoom", 1, LevelScreen::Gate::Side::Right, 25, 3},
@@ -30,6 +32,7 @@ Level::Level(InputManager* pInputManager, Camera* pCamera)
 	};
 	LoadLevel("MainRoom");
 
+	//Create the player Madeline
 	Point2f pos{ 8 * 8, 2 * 8 };
 	float madelinePixWidth{ 8 };
 	float madelinePixHeight{ 16 };
@@ -38,11 +41,12 @@ Level::Level(InputManager* pInputManager, Camera* pCamera)
 	m_pPlayer = pMadeline;
 
 	//Load textures needed for this level
-	//Hardcoded atm, should be changed
-	std::vector<std::string> textureNames{ "Textures/grass.png", "Textures/reflection.png" };
+	//To-DO: hardcoded atm, read from file
+	std::string texturePath{ "Textures/" };
+	std::vector<std::string> textureNames{ "grass.png", "reflection.png" };
 	for (const std::string& textureName : textureNames)
 	{
-		Texture* pTexture{ new Texture(textureName) };
+		Texture* pTexture{ new Texture(texturePath + textureName) };
 		if (!pTexture)
 			std::cout << "Couldn't load " << textureName << std::endl;
 		m_pTextures.push_back(pTexture);
@@ -81,7 +85,7 @@ void Level::LoadLevel(const std::string& name)
 		delete m_pCurLevelScreen;
 
 	//Combine all data that the levelScreen will need into a single struct
-	LevelScreen::InitData initData{ m_LevelScreensData[name].filePath, this, &m_LevelScreensData[name].gates };
+	LevelScreen::InitData initData{ m_LevelScreensData[name].filePath, this, m_LevelScreensData[name].gates };
 	//Load new level
 	m_pCurLevelScreen = new LevelScreen(name, initData);
 }

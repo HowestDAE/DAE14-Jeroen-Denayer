@@ -40,8 +40,12 @@ public:
 		MovementParameters* y;
 	};
 
-	explicit Madeline(Point2f pos, float width, float height, InputManager* pInputManager);
+	explicit Madeline(const Point2f& pos, float width, float height, InputManager* pInputManager);
 	virtual ~Madeline() override;
+	Madeline(const Madeline& other) = delete;
+	Madeline& operator=(const Madeline& other) = delete;
+	Madeline(Madeline&& other) = delete;
+	Madeline& operator=(Madeline&& other) = delete;
 
 	virtual void Draw() const override;
 	virtual void Update(float dt) override;

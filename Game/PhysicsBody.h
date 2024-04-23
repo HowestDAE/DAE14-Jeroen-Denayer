@@ -7,11 +7,17 @@ class PhysicsBody
 public:
 	explicit PhysicsBody(const Rectf& bounds, int idx = 0);
 	virtual ~PhysicsBody() = default;
+	PhysicsBody(const PhysicsBody& other) = delete;
+	PhysicsBody& operator=(const PhysicsBody& other) = delete;
+	PhysicsBody(PhysicsBody&& other) = delete;
+	PhysicsBody& operator=(PhysicsBody&& other) = delete;
 	
 	virtual void Draw() const = 0;
 	virtual void Update(float dt) = 0;
+
 	void UpdatePhysics(float dt);
 	void AddOverlapRect(const Vector2f& offset, float width, float height);
+	void SetPosition(const Point2f& pos);
 	void SetMovement(const Vector2f& targetVel, const Vector2f& vel, const Vector2f& acc);
 	virtual void CollisionInfoResponse(int idx, const CollisionInfo& ci) = 0;
 	Rectf GetBounds() const;

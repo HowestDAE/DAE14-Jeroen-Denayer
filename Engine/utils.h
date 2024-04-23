@@ -91,7 +91,7 @@ namespace utils
 	RectCornersTileIdx GetRectCornersTileIdx(const Rectf& rect, int tileSize);
 	Point2f GetTileIdxPos(TileIdx tileIdx, int tileSize);
 	Rectf GetTileRect(TileIdx tileIdx, int tileSize);
-	Rectf GetTileRect(TileIdx leftBottomIdx, TileIdx rightTopIdx, int tileSize);
+	Rectf GetTileAreaRect(TileIdx leftBottomIdx, TileIdx rightTopIdx, int tileSize);
 #pragma endregion RectFunctionality
 
 #pragma region PhysicsFunctionality

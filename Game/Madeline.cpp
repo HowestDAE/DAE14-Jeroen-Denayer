@@ -4,7 +4,7 @@
 #include "MultiSpriteSheet.h"
 #include "InputManager.h"
 
-Madeline::Madeline(Point2f pos, float width, float height, InputManager* pInputManager)
+Madeline::Madeline(const Point2f& pos, float width, float height, InputManager* pInputManager)
 	: PhysicsBody(Rectf{pos.x, pos.y, width, height})
 	, m_pInputManager{ pInputManager }
 	, m_State{ State::Idle }
@@ -155,7 +155,7 @@ void Madeline::Update(float dt)
 
 	UpdateState(dt);
 
-	std::cout << "State: " << m_pStateInfo->name << std::endl;
+	//std::cout << "State: " << m_pStateInfo->name << std::endl;
 }
 
 void Madeline::CollisionInfoResponse(int idx, const CollisionInfo& ci)
