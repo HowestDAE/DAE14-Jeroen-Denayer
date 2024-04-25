@@ -179,6 +179,9 @@ void BaseGame::Run()
 					m_SDLGameController = FindController();
 				}
 				break;
+			case SDL_MOUSEWHEEL:
+				this->ProcessMouseWheelEvent(e.wheel.y);
+				break;
 			case SDL_CONTROLLERDEVICEREMOVED:
 				if (m_SDLGameController && e.cdevice.which == SDL_JoystickInstanceID(
 					SDL_GameControllerGetJoystick(m_SDLGameController)))

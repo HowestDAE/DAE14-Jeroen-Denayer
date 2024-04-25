@@ -1,12 +1,12 @@
 #pragma once
 
-//forward declarations
+//Forward declarations
 class Texture;
 
 class SpriteSheet
 {
 public:
-	SpriteSheet(const std::string& texturePath, int rows, int cols, int numFrames, float frameTime);
+	SpriteSheet(const std::string& name, int rows, int cols, int numFrames, float frameTime);
 	virtual ~SpriteSheet();
 	SpriteSheet(const SpriteSheet& other) = delete;
 	SpriteSheet& operator=(const SpriteSheet& other) = delete;

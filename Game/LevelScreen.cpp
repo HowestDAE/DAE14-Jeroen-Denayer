@@ -3,21 +3,89 @@
 #include "Level.h"
 #include "Texture.h"
 #include "PhysicsBody.h"
+#include <fstream>
+#include <sstream>
+#include "AssetManager.h"
 
-LevelScreen::LevelScreen(const std::string& name, const InitData& initData)
-	: m_Name{ name }
-	, m_FilePath{ initData.filePath }
-	, m_TileSize{ 8 }
+LevelScreen::LevelScreen(const std::string& name, Level* pLevel)
+	: m_TileSize{ 8 }
 	, m_PixPerM{ 8 }
 	, m_pPhysicsBodies{}
-	, m_pLevel{ initData.pLevel }
-	, m_Gates{ initData.gates }
+	, m_pLevel{ pLevel }
+	, m_pTextures{ std::vector<Texture*>{} }
+	, m_IdToTextureIdx{ std::vector<int>{} }
+	, m_Gates{}
 {
-	Load(m_FilePath);
+	Load(name);
+
+	//Load metadata from file
+	const std::string& dir{ AssetManager::GetDir(AssetManager::Dir::LevelScreenData) };
+	std::string metadataFilePath{ dir + name + ".txt" };
+	std::ifstream metadataFile{ metadataFilePath };
+
+	if (!metadataFile.is_open())
+	{
+		std::cout << "LevelScreen::LevelScreen(): Couldn't open file: " << metadataFilePath << std::endl;
+		Texture* pTexture{ AssetManager::GetTexture("") };
+		m_pTextures.push_back(pTexture);
+		m_IdToTextureIdx = std::vector<int>{ 0 };
+		return;
+	}
+	else 
+	{
+		//To-Do: improve reading from file, less hardcoded stuff
+		std::string line{};
+		int nrLinesToRead{ 2 };
+		enum class VariableName
+		{
+			TextureNames, IdToTextureIdxArr
+		};
+		VariableName variableName{};
+		for (int i = 0; i < nrLinesToRead; i++) {
+			std::getline(metadataFile, line);
+			std::stringstream stream{ line };
+			std::string s{}; //read first part, should be the variable name
+			stream >> s;
+			if (s == "TextureNames:")
+				variableName = VariableName::TextureNames;
+			else if (s == "IdToTextureIdx:")
+				variableName = VariableName::IdToTextureIdxArr;
+
+			while (stream.rdbuf()->in_avail())
+			{
+				switch (variableName)
+				{
+				case VariableName::TextureNames:
+				{
+					std::string textureName{};
+					stream >> textureName;
+					Texture* pTexture{ AssetManager::GetTexture(textureName) };
+					m_pTextures.push_back(pTexture);
+					break;
+				}
+				case VariableName::IdToTextureIdxArr:
+				{
+					int idx{};
+					stream >> idx;
+					m_IdToTextureIdx.push_back(idx);
+					break;
+				}
+				}
+			}
+		}
+		metadataFile.close();
+	}
+
+	//Texture* pTexture{ AssetManager::GetTexture(textureName) };
+	//m_pTextures.push_back(pTexture);
+	//m_IdToTextureIdx = std::vector<int>{ -1, -1, 0, 0, 1 };
 }
 
 LevelScreen::~LevelScreen()
 {
+	for (Texture* pTexture : m_pTextures)
+		AssetManager::RemoveTexture(pTexture);
+
 	for (PhysicsBody* pPhysicsBody : m_pPhysicsBodies)
 		delete pPhysicsBody;
 }
@@ -30,12 +98,12 @@ void LevelScreen::Draw() const
 		int ID{ m_Data[i] };
 		float x{ float(tileIdx.c * m_TileSize) };
 		float y{ float(tileIdx.r * m_TileSize) };
-		if (ID >= 0 && ID < m_pLevel->m_IDToTextureIdxArr.size())
+		if (ID >= 0 && ID < m_IdToTextureIdx.size())
 		{
-			int textureIdx{ m_pLevel->m_IDToTextureIdxArr[ID]};
-			if (textureIdx >= 0 && textureIdx < m_pLevel->m_pTextures.size())
+			int textureIdx{ m_IdToTextureIdx[ID]};
+			if (textureIdx >= 0 && textureIdx < m_pTextures.size())
 			{
-				Texture* pTexture{ m_pLevel->m_pTextures[textureIdx] };
+				Texture* pTexture{ m_pTextures[textureIdx] };
 				if (pTexture)
 				{
 					Rectf srcRect{ 0.f, 0.f, float(m_TileSize), float(m_TileSize) };
@@ -54,7 +122,7 @@ void LevelScreen::Draw() const
 				utils::FillRect(x, y, m_TileSize, m_TileSize);
 			}
 		}
-		else //Draw red rectangle, ID not mapped to textureID in m_IDToTextureIdxArr
+		else //Draw red rectangle, ID not mapped to textureID in m_IdToTextureIdx
 		{
 			utils::SetColor(Color4f{ 1.f, 0.f, 0.f, 1.f });
 			utils::FillRect(x, y, m_TileSize, m_TileSize);
@@ -112,12 +180,14 @@ void LevelScreen::Update(float dt)
 			it = m_pPhysicsBodies.erase(it);
 			//Notify the level that a physicsBody was removed from this level via a certain gate,
 			//level should take care of moving the physicsBody to another levelScreen or delete it
-			bool movedToNewLevel = m_pLevel->TransferPhysicsBody(pPhysicsBody, m_Gates[gateIdx]);
-			if (movedToNewLevel)
-			{
-				//The class instance was removed because the player moved to another level
+			bool movedToNewLevel{};
+			if (m_pLevel) //controlling level should take care of pPHysicsBody
+				movedToNewLevel = m_pLevel->TransferPhysicsBody(pPhysicsBody, m_Gates[gateIdx]);
+			else //no controlling level so remove pPhysicsBody
+				delete pPhysicsBody;
+
+			if (movedToNewLevel) //The class instance was removed because the player moved to another level
 				return;
-			}
 		}
 		else
 		{
@@ -216,12 +286,17 @@ int LevelScreen::GetHeight() const
 //Level Loading Functions
 //##########################
 
-bool LevelScreen::Load(const std::string& filePath)
+bool LevelScreen::Load(const std::string& name)
 {
 	bool succes{ false };
-	SDL_Surface* pSurface{ IMG_Load(filePath.c_str()) };
+	const std::string& dir{ AssetManager::GetDir(AssetManager::Dir::LevelScreenData) };
+	std::string path{ dir + name + ".bmp" };
+	SDL_Surface* pSurface{ IMG_Load(path.c_str()) };
 	if (pSurface == nullptr)
+	{
+		std::cout << "LevelScreen::Load() Couldn't load: " << path << std::endl;
 		return succes;
+	}
 
 	succes = true;
 	m_Rows = pSurface->h;

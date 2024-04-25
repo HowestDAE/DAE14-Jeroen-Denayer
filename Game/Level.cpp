@@ -4,16 +4,17 @@
 #include "Madeline.h"
 #include "Camera.h"
 
-Level::Level(InputManager* pInputManager, Camera* pCamera)
-	: m_pCamera{ pCamera }
+Level::Level(const Rectf& viewport)
+	: m_pCamera{ nullptr }
+	, m_pPlayer{ nullptr }
 	, m_pCurLevelScreen{ nullptr }
 {
 	//Store data needed for loading all the levels
 	//To-DO: hardcoded atm, levelScreen should load it's own data from a file using only the levelScreenName
 	m_LevelScreensData = std::unordered_map<std::string, LevelScreenData>{
-		{"MainRoom", 
+		{"MainRoom",
 			{
-				"Levels/MainRoom.bmp",
+				"LevelScreensData/MainRoom.bmp",
 				std::vector<LevelScreen::Gate>{
 					{"SmallRoom", 0, LevelScreen::Gate::Side::Left, 6, 3},
 					{"SmallRoom", 1, LevelScreen::Gate::Side::Left, 50, 3},
@@ -22,7 +23,7 @@ Level::Level(InputManager* pInputManager, Camera* pCamera)
 		},
 		{"SmallRoom",
 			{
-				"Levels/SmallRoom.bmp",
+				"LevelScreensData/SmallRoom.bmp",
 				std::vector<LevelScreen::Gate>{
 					{"MainRoom", 0, LevelScreen::Gate::Side::Right, 2, 3},
 					{"MainRoom", 1, LevelScreen::Gate::Side::Right, 25, 3},
@@ -33,45 +34,55 @@ Level::Level(InputManager* pInputManager, Camera* pCamera)
 	LoadLevel("MainRoom");
 
 	//Create the player Madeline
-	Point2f pos{ 8 * 8, 2 * 8 };
 	float madelinePixWidth{ 8 };
 	float madelinePixHeight{ 16 };
-	Madeline* pMadeline{ new Madeline(pos, madelinePixWidth, madelinePixHeight, pInputManager) };
-	m_pCurLevelScreen->AddPhysicsBody(pMadeline);
-	m_pPlayer = pMadeline;
+	AccAndVel madelineJumpAccAndVel{ utils::AccAndVelToTravelDistInTime(3.5f, 0.35f) };
+	Point2f pos{ 8 * 8, 2 * 8 };
+	m_pPlayer = new Madeline(pos, madelinePixWidth, madelinePixHeight);
+	m_pCurLevelScreen->AddPhysicsBody(m_pPlayer);
 
-	//Load textures needed for this level
-	//To-DO: hardcoded atm, read from file
-	std::string texturePath{ "Textures/" };
-	std::vector<std::string> textureNames{ "grass.png", "reflection.png" };
-	for (const std::string& textureName : textureNames)
-	{
-		Texture* pTexture{ new Texture(texturePath + textureName) };
-		if (!pTexture)
-			std::cout << "Couldn't load " << textureName << std::endl;
-		m_pTextures.push_back(pTexture);
-	}
+	//Level parameters
+	float G = -madelineJumpAccAndVel.acc;
+	float TILE_SIZE_PIX = 8;
+	float WINDOW_NUM_TILES_X = 40.f;
+	float WINDOW_NUM_TILES_Y = 22.5f;
+	float SCREEN_WIDTH = viewport.width;
+	float SCREEN_HEIGHT = viewport.height;
+	float RENDER_RES_X = TILE_SIZE_PIX * WINDOW_NUM_TILES_X;
+	float RENDER_RES_Y = TILE_SIZE_PIX * WINDOW_NUM_TILES_Y;
+	float RES_SCALE_X = SCREEN_WIDTH / RENDER_RES_X;
+	float RES_SCALE_Y = SCREEN_HEIGHT / RENDER_RES_Y;
+	float PIX_PER_M = TILE_SIZE_PIX;
 
-	//Map each index in the texture to a corresponding idx in m_pTextures
-	//-1 will result in a black tile
-	m_IDToTextureIdxArr = std::vector<int>{ -1, -1, 0, 0, 1 };
+	//Create the camera
+	m_pCamera = new Camera(Point2f{ RENDER_RES_X, RENDER_RES_Y }, Point2f{ RES_SCALE_X, RES_SCALE_Y });
 }
 
 Level::~Level()
 {
+	delete m_pCamera;
 	delete m_pCurLevelScreen;
 
-	for (Texture* pTexture : m_pTextures)
-		delete pTexture;
+	m_pPlayer = nullptr;
 }
 
 void Level::Draw() const
 {
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
+	//Upscale to screen resolution
+	glPushMatrix();
+	const Point2f& resScale{ m_pCamera->GetResolutionScale() };
+	glScalef(resScale.x, resScale.y, 1);
+
 	Rectf playerBounds{ m_pPlayer->GetBounds() };
 	Point2f pos{ playerBounds.left + playerBounds.width / 2, playerBounds.bottom + playerBounds.height / 2 };
 	Camera::TrackingInfo trackignInfo{ m_pCurLevelScreen->GetWidth(), m_pCurLevelScreen->GetHeight(), pos };
 	m_pCamera->Aim(trackignInfo);
 	m_pCurLevelScreen->Draw();
+
+	m_pCamera->Reset();
+	glPopMatrix(); //Release upscaling matrix
 }
 
 void Level::Update(float dt)
@@ -84,10 +95,7 @@ void Level::LoadLevel(const std::string& name)
 	if (m_pCurLevelScreen) //delete existing levelScreen
 		delete m_pCurLevelScreen;
 
-	//Combine all data that the levelScreen will need into a single struct
-	LevelScreen::InitData initData{ m_LevelScreensData[name].filePath, this, m_LevelScreensData[name].gates };
-	//Load new level
-	m_pCurLevelScreen = new LevelScreen(name, initData);
+	m_pCurLevelScreen = new LevelScreen(name, this);
 }
 
 /*
@@ -100,7 +108,7 @@ Return: true if the player moved to a new level, otherwise false
 bool Level::TransferPhysicsBody(PhysicsBody* pPhysicsBody, const LevelScreen::Gate& srcGate)
 {
 	bool movedToNewLevel{};
-	if (pPhysicsBody == m_pPlayer) 
+	if (m_pPlayer && pPhysicsBody == m_pPlayer)
 	{
 		std::unordered_map<std::string, LevelScreenData>::iterator it{ m_LevelScreensData.find(srcGate.connectedLevelScreenName) };
 		if (it != m_LevelScreensData.end()) //found level

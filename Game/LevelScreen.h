@@ -25,14 +25,7 @@ public:
 		int length;
 	};
 
-	struct InitData
-	{
-		const std::string& filePath;
-		Level* pLevel;
-		const std::vector<LevelScreen::Gate>& gates;
-	};
-
-	explicit LevelScreen(const std::string& name, const InitData& initData);
+	explicit LevelScreen(const std::string& name, Level* pLevel = nullptr);
 	~LevelScreen();
 	LevelScreen(const LevelScreen& other) = delete;
 	LevelScreen& operator=(const LevelScreen& other) = delete;
@@ -52,7 +45,7 @@ public:
 	int GetHeight() const;
 private:
 	//Functions
-	bool Load(const std::string& filePath);
+	bool Load(const std::string& name);
 	uint8_t GetPixelID(const SDL_Surface* pSurface, int x, int y) const;
 	void FlipLevel();
 
@@ -70,16 +63,15 @@ private:
 	int GetTileID(int row, int col) const;
 
 	//Members
-	Level* m_pLevel; //association
-	
-	std::string m_Name;
-	std::string m_FilePath;
 	int m_Rows;
 	int m_Cols;
 	int m_TileSize;
 	float m_Width;
 	float m_Height;
 	int m_PixPerM;
+	Level* m_pLevel;
+	std::vector<Texture*> m_pTextures;
+	std::vector<int> m_IdToTextureIdx;
 	std::vector<uint8_t> m_Data;
 	std::vector<PhysicsBody*> m_pPhysicsBodies;
 	std::vector<Gate> m_Gates;

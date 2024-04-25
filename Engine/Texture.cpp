@@ -350,6 +350,11 @@ void Texture::Flip(bool flipX)
 	m_FlipInX = flipX;
 }
 
+GLuint Texture::GetId() const
+{
+	return m_Id;
+}
+
 void Texture::DrawFilledRect(const Rectf& rect) const
 {
 	glColor4f(1.0f, 0.0f, 1.0f, 1.0f);

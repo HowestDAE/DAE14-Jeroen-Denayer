@@ -18,7 +18,7 @@ public:
 		std::vector<LevelScreen::Gate> gates;
 	};
 
-	Level(InputManager* pInputManager, Camera* pCamera);
+	Level(const Rectf& viewport);
 	~Level();
 	Level(const Level& other) = delete;
 	Level& operator=(const Level& other) = delete;
@@ -37,11 +37,7 @@ private:
 	Camera* m_pCamera;
 	PhysicsBody* m_pPlayer;
 	LevelScreen* m_pCurLevelScreen;
-	//Shared data for all LevelScreens;
-	std::vector<Texture*> m_pTextures;
-	std::vector<int> m_IDToTextureIdxArr;
 
-	friend void LevelScreen::Draw() const;
 	friend void LevelScreen::Update(float dt);
 };
 

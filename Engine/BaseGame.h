@@ -47,6 +47,11 @@ public:
 		
 	}
 
+	virtual void ProcessMouseWheelEvent(int direction)
+	{
+
+	}
+
 	const Rectf& GetViewPort() const
 	{
 		return m_Viewport;

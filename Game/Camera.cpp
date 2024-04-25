@@ -2,9 +2,10 @@
 #include "Camera.h"
 #include "Vector2f.h"
 
-Camera::Camera(float screenW, float screenH)
-	: m_ScreenW{ screenW }
-	, m_ScreenH{ screenH }
+Camera::Camera(const Point2f& screenDimensions, const Point2f& resolutionScale)
+	: m_ScreenW{ screenDimensions.x }
+	, m_ScreenH{ screenDimensions.y }
+	, m_ResolutionScale{ resolutionScale }
 	, m_Transform{}
 {
 }
@@ -25,4 +26,9 @@ void Camera::Aim(const TrackingInfo& info)
 void Camera::Reset()
 {
 	m_Transform.ResetTransformation();
+}
+
+Point2f Camera::GetResolutionScale() const
+{
+	return m_ResolutionScale;
 }

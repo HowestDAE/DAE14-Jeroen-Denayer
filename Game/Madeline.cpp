@@ -4,9 +4,8 @@
 #include "MultiSpriteSheet.h"
 #include "InputManager.h"
 
-Madeline::Madeline(const Point2f& pos, float width, float height, InputManager* pInputManager)
+Madeline::Madeline(const Point2f& pos, float width, float height)
 	: PhysicsBody(Rectf{pos.x, pos.y, width, height})
-	, m_pInputManager{ pInputManager }
 	, m_State{ State::Idle }
 	, m_pStateInfo{ nullptr }
 	//State parameters
@@ -85,7 +84,7 @@ Madeline::Madeline(const Point2f& pos, float width, float height, InputManager* 
 
 	m_pStateInfo = &m_StateInfoArr[0];
 
-	m_pMultiSpriteSheet = new MultiSpriteSheet{ "Textures/MadelineSpritesheet.png", 14, 14,
+	m_pMultiSpriteSheet = new MultiSpriteSheet{ "MadelineSpritesheet", 14, 14,
 		std::unordered_map<std::string, MultiSpriteSheet::SpriteSheetInfo>{
 			{ "Climbing", { 0, 15, 0.1f } },
 			{ "Crouching", {15, 16, 0.1f} },
@@ -181,8 +180,8 @@ void Madeline::CollisionInfoResponse(int idx, const CollisionInfo& ci)
 
 void Madeline::SetState()
 {
-	Vector2i inputDir{ m_pInputManager->GetDir() };
-	if (m_CanDash && m_pInputManager->IsDashing())
+	Vector2i inputDir{ InputManager::GetControllerInfo().leftJoystickDir };
+	if (m_CanDash && InputManager::GetControllerInfo().pressingRightShoulder)
 	{
 			m_CanDash = false;
 			m_Dashing = true;
@@ -190,11 +189,11 @@ void Madeline::SetState()
 	}
 	else if (m_Dashing) //continue dash
 		return; 
-	else if (m_CanJump && m_pInputManager->IsJumping()) //Start a specific jump
+	else if (m_CanJump && InputManager::GetControllerInfo().pressingButtonX) //Start a specific jump
 	{
 		m_Jumping = true;
 		m_CanJump = false;
-		if (m_DistFromWall == 0.f && m_pInputManager->IsGrabbing()) //Grabbing a wall
+		if (m_DistFromWall == 0.f && InputManager::GetControllerInfo().pressingRightTrigger) //Grabbing a wall
 			m_State = State::WallHopping;
 		else if (m_OnGround) //Normal ground jump
 			m_State = State::GroundJumping;
@@ -205,7 +204,7 @@ void Madeline::SetState()
 	}
 	else if (m_Jumping)
 	{
-		if (m_pInputManager->IsJumping())
+		if (InputManager::GetControllerInfo().pressingButtonX)
 			if ((m_State == State::WallJumping ||
 				m_State == State::WallNeutralJumping ||
 				m_State == State::WallHopping) &&
@@ -240,7 +239,7 @@ void Madeline::SetStateParameters(float dt)
 {
 	float epsilon(0.5f); //in pixels
 	//Against the wall and grabbing
-	m_Grabbing = m_DistFromWall < epsilon && m_pInputManager->IsGrabbing();
+	m_Grabbing = m_DistFromWall < epsilon && InputManager::GetControllerInfo().pressingRightTrigger;
 
 	if (!m_OnGround && !m_Grabbing)
 		m_AirTime += dt;
@@ -249,11 +248,11 @@ void Madeline::SetStateParameters(float dt)
 
 	//Can jump and not on ground or against wall or airTime > ledgeJumpTime will set m_CanJump = false or,
 	//Can't jump or no jump input but on ground or against wall will set m_CanJump = true
-	m_CanJump = (m_CanJump || !m_pInputManager->IsJumping()) && (m_OnGround || m_AgainstWall) || (m_CanJump && m_AirTime <= m_LedgeJumpTime);
+	m_CanJump = (m_CanJump || !InputManager::GetControllerInfo().pressingButtonX) && (m_OnGround || m_AgainstWall) || (m_CanJump && m_AirTime <= m_LedgeJumpTime);
 	//m_Jumping will go from true to false if m_Jumping is true and vel <= 0 or m_OnGround
 	m_Jumping &= (m_Vel.y > 0.f && !m_OnGround);
 	//m_CanDash will go from false to true if no dash input and m_OnGround
-	m_CanDash |= (!m_pInputManager->IsDashing() && m_OnGround);
+	m_CanDash |= (!InputManager::GetControllerInfo().pressingRightShoulder && m_OnGround);
 	//m_Dashing will go from true to false if vel x and y have reached the maxSpeed
 	m_Dashing &= !(m_Vel.x == m_pStateInfo->x->maxSpeed && m_Vel.y == m_pStateInfo->y->maxSpeed);
 }
@@ -263,7 +262,7 @@ void Madeline::InitialiseState()
 	int stateIdx{ int(m_State) };
 	m_pStateInfo = &m_StateInfoArr[stateIdx];
 
-	Vector2i inputDir{ m_pInputManager->GetDir() };
+	Vector2i inputDir{ InputManager::GetControllerInfo().leftJoystickDir };
 	ApplyMovementParameters(m_TargetVel.x, m_Vel.x, m_Acc.x, *m_pStateInfo->x, inputDir.x);
 	ApplyMovementParameters(m_TargetVel.y, m_Vel.y, m_Acc.y, *m_pStateInfo->y, inputDir.y);
 
@@ -288,7 +287,7 @@ void Madeline::InitialiseState()
 
 void Madeline::UpdateState(float dt)
 {
-	Vector2i dir{ m_pInputManager->GetDir() };
+	Vector2i dir{ InputManager::GetControllerInfo().leftJoystickDir };
 	if (m_pStateInfo->x->allowDirChange)
 	{
 		m_TargetVel.x = m_pStateInfo->x->maxSpeed * dir.x;

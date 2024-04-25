@@ -1,9 +1,10 @@
 #include "pch.h"
 #include "SpriteSheet.h"
 #include "Texture.h"
+#include "AssetManager.h"
 
-SpriteSheet::SpriteSheet(const std::string& texturePath, int rows, int cols, int numFrames, float frameTime)
-	: m_pTexture{ nullptr }
+SpriteSheet::SpriteSheet(const std::string& name, int rows, int cols, int numFrames, float frameTime)
+	: m_pTexture{ AssetManager::GetTexture(name) }
 	, m_Rows{ rows }
 	, m_Cols{ cols }
 	, m_NumFrames{ numFrames }
@@ -12,16 +13,15 @@ SpriteSheet::SpriteSheet(const std::string& texturePath, int rows, int cols, int
 	, m_FrameTime{ frameTime }
 	, m_AccumulatedFrameTime{}
 {
-	m_pTexture = new Texture(texturePath);
 	if (!m_pTexture)
-		std::cout << "Couldn't load " << texturePath << std::endl;
+		std::cout << "SpriteSheet::SpriteSheet(): Couldn't load: " << name << std::endl;
 	else
 		m_FrameSize = int(m_pTexture->GetWidth() / m_Cols);
 }
 
 SpriteSheet::~SpriteSheet()
 {
-	delete m_pTexture;
+	AssetManager::RemoveTexture(m_pTexture);
 }
 
 void SpriteSheet::Draw(const Rectf& dstRect) const

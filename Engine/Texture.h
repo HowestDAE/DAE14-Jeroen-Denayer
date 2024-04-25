@@ -20,6 +20,7 @@ public:
 	float GetHeight() const;
 	bool IsCreationOk( ) const;
 	void Flip(bool flipX);
+	GLuint GetId() const;
 
 private:
 	//DATA MEMBERS

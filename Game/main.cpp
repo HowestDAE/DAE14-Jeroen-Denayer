@@ -2,6 +2,8 @@
 #include <ctime>
 #include "Game.h"
 
+
+#define DEBUG
 void StartHeapControl();
 void DumpMemoryLeaks();
 
@@ -38,7 +40,7 @@ void StartHeapControl()
 void DumpMemoryLeaks()
 {
 #if defined(DEBUG) | defined(_DEBUG)
-	_CrtDumpMemoryLeaks();
+	bool leak = _CrtDumpMemoryLeaks();
 #endif
 }
 

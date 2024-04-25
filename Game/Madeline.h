@@ -1,11 +1,9 @@
  #pragma once
 #include "PhysicsBody.h"
-#include "Game.h"
 #include <unordered_map>
 
 //Forward declarations
 class MultiSpriteSheet;
-class InputManager;
 
 class Madeline final
 	:public PhysicsBody
@@ -40,7 +38,7 @@ public:
 		MovementParameters* y;
 	};
 
-	explicit Madeline(const Point2f& pos, float width, float height, InputManager* pInputManager);
+	explicit Madeline(const Point2f& pos, float width, float height);
 	virtual ~Madeline() override;
 	Madeline(const Madeline& other) = delete;
 	Madeline& operator=(const Madeline& other) = delete;
@@ -59,7 +57,6 @@ private:
 	void ApplyMovementParameters(float& targetVel, float& vel, float& acc, MovementParameters& movementParameters, float inputDir);
 
 	//Members
-	InputManager* m_pInputManager;
 	MultiSpriteSheet* m_pMultiSpriteSheet;
 	State m_State;
 	StateInfo* m_pStateInfo;

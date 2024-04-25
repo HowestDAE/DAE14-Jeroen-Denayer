@@ -8,7 +8,6 @@ PhysicsBody::PhysicsBody(const Rectf& bounds, int idx)
 	, m_Acc{ Vector2f{} }
 	, m_OverlapRects{ std::vector<Rectf>{} }
 {
-	std::cout << "PHysicsBody Constructor called" << std::endl;
 }
 
 void PhysicsBody::UpdatePhysics(float dt)
