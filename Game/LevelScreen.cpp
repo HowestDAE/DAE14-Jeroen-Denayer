@@ -272,6 +272,11 @@ CollisionInfo LevelScreen::MovePhysicsRect(Rectf& bounds, Vector2f& vel, float t
 	return ci;
 }
 
+Point2f LevelScreen::GetDimensions() const
+{
+	return Point2f{ float(GetWidth()), float(GetHeight()) };
+}
+
 int LevelScreen::GetWidth() const
 {
 	return m_Cols * m_TileSize;

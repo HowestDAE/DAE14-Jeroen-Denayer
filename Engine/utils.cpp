@@ -727,6 +727,19 @@ bool utils::IntersectRectLine(const Rectf& r, const Point2f& p1, const Point2f& 
 	return true;
 }
 
+Vector2f utils::GetCenter(const Rectf& rect, bool relative)
+{
+	if (relative)
+		return GetCenter(Vector2f{ rect.width, rect.height });
+	else
+		return Vector2f{ rect.left + rect.width / 2, rect.bottom + rect.height / 2 };
+}
+
+Vector2f utils::GetCenter(const Vector2f& topRight)
+{
+	return Vector2f{ topRight.x / 2, topRight.y / 2 };
+}
+
 RectCorners utils::GetRectCorners(const Rectf& rect)
 {
 	return RectCorners{
@@ -748,7 +761,7 @@ std::vector<Point2f> utils::GetRectVertices(const Rectf& rect)
 	return verts;
 }
 
-TileIdx utils::GetTileIdxByPos(const Point2f& pos, int tileSize, bool offsetTop)
+TileIdx utils::GetTileIdxByPos(const Vector2f& pos, int tileSize, bool offsetTop)
 {
 	float fRowIdx{ pos.y / tileSize };
 	float fColIdx{ pos.x / tileSize };
@@ -768,16 +781,16 @@ TileIdx utils::GetTileIdxByPos(const Point2f& pos, int tileSize, bool offsetTop)
 
 RectCornersTileIdx utils::GetRectCornersTileIdx(const Rectf& rect, int tileSize)
 {
-	TileIdx leftBottomIdx{ GetTileIdxByPos(Point2f{ rect.left, rect.bottom }, tileSize) };
-	TileIdx rightTopIdx{ GetTileIdxByPos(Point2f{ rect.left + rect.width, rect.bottom + rect.height }, tileSize, true) };
+	TileIdx leftBottomIdx{ GetTileIdxByPos(Vector2f{ rect.left, rect.bottom }, tileSize) };
+	TileIdx rightTopIdx{ GetTileIdxByPos(Vector2f{ rect.left + rect.width, rect.bottom + rect.height }, tileSize, true) };
 	TileIdx leftTopIdx{ rightTopIdx.r, leftBottomIdx.c };
 	TileIdx rightBottomIdx{ leftBottomIdx.r, rightTopIdx.c };
 	return RectCornersTileIdx{ leftBottomIdx, leftTopIdx, rightTopIdx, rightBottomIdx };
 }
 
-Point2f utils::GetTileIdxPos(TileIdx tileIdx, int tileSize)
+Vector2f utils::GetTileIdxPos(TileIdx tileIdx, int tileSize)
 {
-	return Point2f{ float(tileIdx.c * tileSize), float(tileIdx.r * tileSize) };
+	return Vector2f{ float(tileIdx.c * tileSize), float(tileIdx.r * tileSize) };
 }
 
 Rectf utils::GetTileRect(TileIdx tileIdx, int tileSize)

@@ -85,11 +85,13 @@ namespace utils
 
 
 #pragma region RectFunctionality
+	Vector2f GetCenter(const Rectf& rect, bool relative = false);
+	Vector2f GetCenter(const Vector2f& topRight);
 	RectCorners GetRectCorners(const Rectf& rect);
 	std::vector<Point2f> GetRectVertices(const Rectf& rect);
-	TileIdx GetTileIdxByPos(const Point2f& pos, int tileSize, bool offsetTop = false);
+	TileIdx GetTileIdxByPos(const Vector2f& pos, int tileSize, bool offsetTop = false);
 	RectCornersTileIdx GetRectCornersTileIdx(const Rectf& rect, int tileSize);
-	Point2f GetTileIdxPos(TileIdx tileIdx, int tileSize);
+	Vector2f GetTileIdxPos(TileIdx tileIdx, int tileSize);
 	Rectf GetTileRect(TileIdx tileIdx, int tileSize);
 	Rectf GetTileAreaRect(TileIdx leftBottomIdx, TileIdx rightTopIdx, int tileSize);
 #pragma endregion RectFunctionality

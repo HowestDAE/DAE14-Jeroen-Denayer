@@ -7,17 +7,14 @@ class Level;
 class GameData
 {
 public:
-	GameData(const GameData&) = delete; //Remove copy constructor
-	void operator=(const GameData&) = delete; //remove assingment operator
+	GameData(const GameData&) = delete;
+	void operator=(const GameData&) = delete;
 
 	static GameData& Get();
-	static void		Cleanup();
-	static void		SetGameData(float screenWidth, float screenHeight);
-	static void		SetActiveLevel(Level& level);
-	static void		SetGravity(float g);
+	static void		Init(const Rectf& viewport);
 
 	//static float
-	static float 	G();
+	static Rectf	VIEWPORT();
 	static int		TILE_SIZE_PIX();
 	static float	WINDOW_NUM_TILES_X();
 	static float	WINDOW_NUM_TILES_Y();
@@ -28,13 +25,10 @@ public:
 	static float	RES_SCALE_X();
 	static float	RES_SCALE_Y();
 	static int		PIX_PER_M();
-	static const Level*	ActiveLvl();
 private:
-	GameData(); //private constructor
+	GameData();
 
-	static GameData s_Instance;
-
-	float	m_G;
+	Rectf	m_Viewport;
 	int		m_TILE_SIZE_PIX;
 	float	m_WINDOW_NUM_TILES_X;
 	float	m_WINDOW_NUM_TILES_Y;
@@ -45,5 +39,4 @@ private:
 	float	m_RES_SCALE_X;
 	float	m_RES_SCALE_Y;
 	int		m_PIX_PER_M;
-	Level* m_pActiveLvl;
 };

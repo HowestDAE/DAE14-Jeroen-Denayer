@@ -1,12 +1,10 @@
 #include "pch.h"
 #include "GameData.h"
 
-GameData GameData::s_Instance;
-
 GameData::GameData()
-	: m_SCREEN_WIDTH{}
+	: m_Viewport{}
+	, m_SCREEN_WIDTH{}
 	, m_SCREEN_HEIGHT{}
-	, m_G{}
 	, m_TILE_SIZE_PIX{}
 	, m_WINDOW_NUM_TILES_X{}
 	, m_WINDOW_NUM_TILES_Y{}
@@ -15,32 +13,24 @@ GameData::GameData()
 	, m_RES_SCALE_X{}
 	, m_RES_SCALE_Y{}
 	, m_PIX_PER_M{}
-	, m_pActiveLvl{}
 {
 }
 
 GameData& GameData::Get()
 {
-    return s_Instance;
+	static GameData instance;
+	return instance;
 }
 
-void GameData::Cleanup()
+void GameData::Init(const Rectf& viewport)
 {
 	GameData& gameData{ Get() };
-	//DON'T DELETE m_pActiveLvl here
-	//m_pActiveLvl is deleted in game class
-	gameData.m_pActiveLvl = nullptr;
-}
-
-void GameData::SetGameData(float screenWidth, float screenHeight)
-{
-	GameData& gameData{ Get() };
-	gameData.m_G					= -9.81f;
+	gameData.m_Viewport				= viewport;
 	gameData.m_TILE_SIZE_PIX		= 8;
 	gameData.m_WINDOW_NUM_TILES_X	= 40.f;
 	gameData.m_WINDOW_NUM_TILES_Y	= 22.5f;
-    gameData.m_SCREEN_WIDTH			= screenWidth;
-    gameData.m_SCREEN_HEIGHT		= screenHeight;
+    gameData.m_SCREEN_WIDTH			= viewport.width;
+    gameData.m_SCREEN_HEIGHT		= viewport.height;
 	gameData.m_RENDER_RES_X			= gameData.m_TILE_SIZE_PIX * gameData.m_WINDOW_NUM_TILES_X;
 	gameData.m_RENDER_RES_Y			= gameData.m_TILE_SIZE_PIX * gameData.m_WINDOW_NUM_TILES_Y;
 	gameData.m_RES_SCALE_X			= gameData.m_SCREEN_WIDTH / gameData.m_RENDER_RES_X;
@@ -48,17 +38,10 @@ void GameData::SetGameData(float screenWidth, float screenHeight)
 	gameData.m_PIX_PER_M			= gameData.m_TILE_SIZE_PIX;
 }
 
-void GameData::SetActiveLevel(Level& level)
+Rectf GameData::VIEWPORT()
 {
-	Get().m_pActiveLvl = &level;
+	return Get().m_Viewport;
 }
-
-void GameData::SetGravity(float g)
-{
-	Get().m_G = g;
-}
-
-float GameData::G() { return Get().m_G; }
 
 int GameData::TILE_SIZE_PIX() { return Get().m_TILE_SIZE_PIX; }
 
@@ -79,5 +62,3 @@ float GameData::RES_SCALE_X() { return Get().m_RES_SCALE_X; }
 float GameData::RES_SCALE_Y() { return Get().m_RES_SCALE_Y; }
 
 int GameData::PIX_PER_M() { return Get().m_PIX_PER_M; }
-
-const Level* GameData::ActiveLvl() { return Get().m_pActiveLvl; }

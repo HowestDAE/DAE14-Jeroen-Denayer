@@ -18,7 +18,7 @@ public:
 		std::vector<LevelScreen::Gate> gates;
 	};
 
-	Level(const Rectf& viewport);
+	Level();
 	~Level();
 	Level(const Level& other) = delete;
 	Level& operator=(const Level& other) = delete;

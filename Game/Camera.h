@@ -1,25 +1,22 @@
 #pragma once
-#include "Transform.h"
 
 class Camera
 {
 public:
-	struct TrackingInfo
-	{
-		float levelWidth;
-		float levelHeight;
-		Point2f center;
-	};
+	Camera(const Vector2f& boundary = Vector2f{0.f, 0.f}, const Vector2f& zoom = Vector2f{1.f, 1.f});
 
-	Camera(const Point2f& screenDimensions, const Point2f& resolutionScale);
-
-	void Aim(const TrackingInfo& info);
+	void Aim(const Rectf& rect);
+	void Zoom(int dir);
+	void Offset(const Vector2f& offset);
+	void Focus();
 	void Reset();
-	Point2f GetResolutionScale() const;
 private:
-	float m_ScreenW;
-	float m_ScreenH;
-	Point2f m_ResolutionScale;
-	Transform m_Transform;
+	Vector2f m_ScreenSize;
+	Vector2f m_Boundary;
+	bool m_ConstrainToBoundary;
+	Vector2f m_Offset;
+	Vector2f m_BaseZoom;
+	Vector2f m_Zoom;
+	float m_MinZoom;
 };
 

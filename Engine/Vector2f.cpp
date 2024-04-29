@@ -175,6 +175,14 @@ Vector2f operator/( Vector2f lhs, float rhs )
 	return lhs *= (1 / rhs);
 }
 
+Vector2f operator/(Vector2f lhs, Vector2f rhs)
+{
+	if (rhs.x == 0.f || rhs.y == 0.f)
+		return Vector2f{ 0.f, 0.f };
+	else
+		return Vector2f{ lhs.x / rhs.x, lhs.y / rhs.y };
+}
+
 Vector2f operator+( Vector2f lhs, const Vector2f& rhs )
 {
 	return lhs += rhs;

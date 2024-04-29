@@ -12,8 +12,6 @@ public:
 
 	InputManager(const InputManager& other) = delete;
 	InputManager& operator=(const InputManager& other) = delete;
-	InputManager(InputManager&& other) = delete;
-	InputManager& operator=(InputManager&& other) = delete;
 
 	static void ProcessKeyDownEvent(const SDL_KeyboardEvent& e);
 	static void ProcessKeyUpEvent(const SDL_KeyboardEvent& e);
@@ -24,16 +22,18 @@ public:
 
 	enum class Event
 	{
-		ClickedLMB, ScrollingMMB, PressedEnter, PressedEscape, PressedE
+		ClickedLMB, ScrollingMMB, DraggingMMB, PressedEnter, PressedEscape, PressedE, PressedF
 	};
 
 	struct MouseInfo
 	{
-		Point2f pos;
+		Vector2f pos;
 		bool pressedLMB;
 		bool pressingLMB;
-		bool draggingLMB;
-		Point2f dragDist;
+		bool pressedMMB;
+		bool pressingMMB;
+		bool draggingMMB;
+		Vector2f dragDist;
 		bool scrollingMMB;
 		int scrollDir;
 	};
@@ -51,26 +51,38 @@ public:
 		bool pressedEnter;
 		bool pressedEscape;
 		bool pressedE;
+		bool pressedF;
 	};
 
 	typedef std::function<void()> Callback;
 	static void RegisterCallback(Event e, Callback callback);
 
-	static MouseInfo& GetMouseInfo();
-	static ControllerInfo& GetControllerInfo();
-	static KeyInfo& GetKeyInfo();
+	static const MouseInfo& GetMouseInfo();
+	static const ControllerInfo& GetControllerInfo();
+	static const KeyInfo& GetKeyInfo();
 private:
 	InputManager();
 
-	static void TriggerCallBacks(Event e);
+	//Internal implementation of public functions
+	void IUpdate();
+	void IReset();
+	void IProcessKeyDownEvent(const SDL_KeyboardEvent& e);
+	void IProcessKeyUpEvent(const SDL_KeyboardEvent& e);
+	void IProcessMouseMotionEvent(const SDL_MouseMotionEvent& e);
+	void IProcessMouseDownEvent(const SDL_MouseButtonEvent& e);
+	void IProcessMouseUpEvent(const SDL_MouseButtonEvent& e);
+	void IProcessMouseWheelEvent(int direction);
 
-	static const Uint8* s_pKeyStates;
-	static SDL_GameController* s_SDLGameController;
-	static MouseInfo s_MouseInfo;
-	static ControllerInfo s_ControllerInfo;
-	static KeyInfo s_KeyInfo;
+	//Functions
+	void TriggerCallBacks(Event e);
 
-	static std::unordered_map<Event, std::vector<Callback>> m_CallBacks;
+	//Members
+	const Uint8* m_pKeyStates;
+	SDL_GameController* m_pSDLGameController;
+	MouseInfo m_MouseInfo;
+	ControllerInfo m_ControllerInfo;
+	KeyInfo m_KeyInfo;
+	std::unordered_map<Event, std::vector<Callback>> m_CallBacks;
 };
 
 //enum class Mouse

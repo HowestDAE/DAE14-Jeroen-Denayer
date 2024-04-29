@@ -41,6 +41,7 @@ public:
 	CollisionInfo DetectRectCollision(const Rectf& bounds, bool checkXDir = true, bool checkYDir = true, const Vector2f& vel = Vector2f{}, float time = 0.f, bool checkVelDir = false) const;
 	CollisionInfo MovePhysicsRect(Rectf& bounds, Vector2f& vel, float time) const;
 
+	Point2f GetDimensions() const;
 	int GetWidth() const;
 	int GetHeight() const;
 private:

@@ -9,13 +9,10 @@ class AssetManager final
 {
 public:
 	static AssetManager& Get();
-	static void Init();
-	static void ReleaseDynamicMemory();
+	static void Cleanup();
 
 	AssetManager(const AssetManager& other) = delete;
 	AssetManager& operator=(const AssetManager& other) = delete;
-	AssetManager(AssetManager&& other) = delete;
-	AssetManager& operator=(AssetManager&& other) = delete;
 
 	enum class DataType
 	{
@@ -39,11 +36,12 @@ public:
 	static void RemoveTexture(Texture* pTexture);
 private:
 	AssetManager();
+	Texture* IGetTexture(const std::string& name);
+	void IRemoveTexture(Texture* pTexture);
 
-	static std::vector<std::string> s_Dirs;
-
-	static Texture* s_pDefaultTexture;
-	static std::unordered_map<std::string, GLuint> s_TextureNameIdMap;
-	static std::unordered_map<GLuint, TextureInfo> s_Textures;
+	std::vector<std::string> m_Dirs;
+	Texture* m_pDefaultTexture;
+	std::unordered_map<std::string, GLuint> m_TextureNameIdMap;
+	std::unordered_map<GLuint, TextureInfo> m_Textures;
 };
 

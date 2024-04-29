@@ -3,8 +3,9 @@
 #include "Texture.h"
 #include "Madeline.h"
 #include "Camera.h"
+#include "GameData.h"
 
-Level::Level(const Rectf& viewport)
+Level::Level()
 	: m_pCamera{ nullptr }
 	, m_pPlayer{ nullptr }
 	, m_pCurLevelScreen{ nullptr }
@@ -41,21 +42,8 @@ Level::Level(const Rectf& viewport)
 	m_pPlayer = new Madeline(pos, madelinePixWidth, madelinePixHeight);
 	m_pCurLevelScreen->AddPhysicsBody(m_pPlayer);
 
-	//Level parameters
-	float G = -madelineJumpAccAndVel.acc;
-	float TILE_SIZE_PIX = 8;
-	float WINDOW_NUM_TILES_X = 40.f;
-	float WINDOW_NUM_TILES_Y = 22.5f;
-	float SCREEN_WIDTH = viewport.width;
-	float SCREEN_HEIGHT = viewport.height;
-	float RENDER_RES_X = TILE_SIZE_PIX * WINDOW_NUM_TILES_X;
-	float RENDER_RES_Y = TILE_SIZE_PIX * WINDOW_NUM_TILES_Y;
-	float RES_SCALE_X = SCREEN_WIDTH / RENDER_RES_X;
-	float RES_SCALE_Y = SCREEN_HEIGHT / RENDER_RES_Y;
-	float PIX_PER_M = TILE_SIZE_PIX;
-
 	//Create the camera
-	m_pCamera = new Camera(Point2f{ RENDER_RES_X, RENDER_RES_Y }, Point2f{ RES_SCALE_X, RES_SCALE_Y });
+	m_pCamera = new Camera(Vector2f{m_pCurLevelScreen->GetDimensions()}, Vector2f{GameData::RES_SCALE_X(), GameData::RES_SCALE_Y()});
 }
 
 Level::~Level()
@@ -68,21 +56,14 @@ Level::~Level()
 
 void Level::Draw() const
 {
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);;
 	glClear(GL_COLOR_BUFFER_BIT);
-	//Upscale to screen resolution
-	glPushMatrix();
-	const Point2f& resScale{ m_pCamera->GetResolutionScale() };
-	glScalef(resScale.x, resScale.y, 1);
 
-	Rectf playerBounds{ m_pPlayer->GetBounds() };
-	Point2f pos{ playerBounds.left + playerBounds.width / 2, playerBounds.bottom + playerBounds.height / 2 };
-	Camera::TrackingInfo trackignInfo{ m_pCurLevelScreen->GetWidth(), m_pCurLevelScreen->GetHeight(), pos };
-	m_pCamera->Aim(trackignInfo);
+	m_pCamera->Aim(m_pPlayer->GetBounds());
+
 	m_pCurLevelScreen->Draw();
 
 	m_pCamera->Reset();
-	glPopMatrix(); //Release upscaling matrix
 }
 
 void Level::Update(float dt)

@@ -3,23 +3,28 @@
 #include "LevelEditor.h"
 #include "Level.h"
 #include "InputManager.h"
+#include "AssetManager.h"
+#include "GameData.h"
+#include "Transform.h"
 
 Game::Game( const Window& window ) 
 	: BaseGame{ window }
-	, m_Mode{ Mode::RunEditor }
+	, m_Mode{ Mode::PlayLevel }
 	, m_pActiveLvl{ nullptr }
 	, m_pLevelEditor{ nullptr }
 {
+	Rectf viewport{ GetViewPort() };
+
+	GameData::Init(viewport);
 	InputManager::Init(m_SDLGameController);
 
-	Rectf viewport{ GetViewPort() };
 	switch (m_Mode)
 	{
 	case Mode::PlayLevel:
-		m_pActiveLvl = new Level(viewport);
+		m_pActiveLvl = new Level();
 		break;
 	case Mode::RunEditor:
-		m_pLevelEditor = new LevelEditor(viewport);
+		m_pLevelEditor = new LevelEditor();
 		break;
 	}
 }
@@ -28,6 +33,7 @@ Game::~Game( )
 {
 	delete m_pLevelEditor;
 	delete m_pActiveLvl;
+	AssetManager::Cleanup();
 }
 
 void Game::Update( float elapsedSec )
@@ -65,6 +71,12 @@ void Game::Draw( ) const
 		m_pLevelEditor->Draw();
 		break;
 	}
+
+	Rectf vp{ GetViewPort() };
+
+	utils::SetColor(Color4f{ 1.f, 0.f, 0.f, 1.f });
+	utils::DrawLine(Point2f{ vp.width / 2, 0.f }, Point2f{ vp.width / 2, vp.height }, 2.f);
+	utils::DrawLine(Point2f{ 0.f, vp.height / 2 }, Point2f{ vp.width, vp.height / 2 }, 2.f);
 }
 
 void Game::ProcessKeyDownEvent( const SDL_KeyboardEvent & e )

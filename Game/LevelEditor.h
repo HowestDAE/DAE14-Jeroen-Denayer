@@ -9,7 +9,7 @@ class Camera;
 class LevelEditor final
 {
 public:
-	LevelEditor(const Rectf& viewport);
+	LevelEditor();
 	~LevelEditor();
 
 	void Draw() const;
@@ -17,8 +17,11 @@ public:
 private:
 	void PressedEnter();
 	void PressedEscape();
+	void PressedF();
 	void ClickedLMB();
-	void ScrollThroughModes();
+	void ScrollingMMB();
+	void DraggingMMB();
+	void EditCurrentMode();
 
 	enum class Mode
 	{
@@ -26,7 +29,8 @@ private:
 	};
 
 	//Functions
-	void SetModeSelect();
+	void SetDefaultMode();
+	void ScrollThroughModes();
 	void CreateLevel();
 	//void EditLevel();
 	void CreateLevelScreen();
@@ -42,11 +46,9 @@ private:
 	void PrintHeader(const std::string& text);
 
 	//Members
-	Rectf m_Viewport;
-	Point2f m_ResolutionScale;
 	Camera* m_pCamera;
-
 	int m_NUM_MODES;
+	Mode m_DefaultMode;
 	Mode m_Mode;
 	Mode m_SelectedMode;
 	std::vector<std::string> m_MODE_NAMES;

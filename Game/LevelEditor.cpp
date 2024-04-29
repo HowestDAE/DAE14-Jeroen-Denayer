@@ -7,13 +7,14 @@
 #include "Camera.h"
 #include "AssetManager.h"
 #include "InputManager.h"
+#include "GameData.h"
 #include <functional>
 
-LevelEditor::LevelEditor(const Rectf& viewport)
-	: m_Viewport{ viewport }
-    , m_ResolutionScale{ Point2f{1.f, 1.f } }
-    , m_pCamera{ new Camera(Point2f{ m_Viewport.width, m_Viewport.height }, m_ResolutionScale) }
+LevelEditor::LevelEditor()
+	: m_pCamera{ new Camera() }
+    , m_DefaultMode{ Mode::ModeSelect }
     , m_Mode{}
+    , m_SelectedMode{}
     , m_NUM_MODES{ 6 }
     , m_MODE_NAMES{ std::vector<std::string>{"ModeSelect", "RunLevel", "CreateLevel", "EditLevel", "CreateLevelScreen", "EditLevelScreen"} }
     , m_pCurLevel{ nullptr }
@@ -29,10 +30,19 @@ LevelEditor::LevelEditor(const Rectf& viewport)
     std::function<void(void)> fClickedLMB = std::bind(&LevelEditor::ClickedLMB, this);
     InputManager::RegisterCallback(InputManager::Event::ClickedLMB, fClickedLMB);
 
-    std::function<void(void)> fScrollThroughModes = std::bind(&LevelEditor::ScrollThroughModes, this);
-    InputManager::RegisterCallback(InputManager::Event::ScrollingMMB, fScrollThroughModes);
+    std::function<void(void)> fScrollingMMB = std::bind(&LevelEditor::ScrollingMMB, this);
+    InputManager::RegisterCallback(InputManager::Event::ScrollingMMB, fScrollingMMB);
+    
+    std::function<void(void)> fEditCurrentMode = std::bind(&LevelEditor::EditCurrentMode, this);
+    InputManager::RegisterCallback(InputManager::Event::PressedE, fEditCurrentMode);
+    
+    std::function<void(void)> fDraggingMMB = std::bind(&LevelEditor::DraggingMMB, this);
+    InputManager::RegisterCallback(InputManager::Event::DraggingMMB, fDraggingMMB);
 
-    SetModeSelect();
+    std::function<void(void)> fPressedF = std::bind(&LevelEditor::PressedF, this);
+    InputManager::RegisterCallback(InputManager::Event::PressedF, fPressedF);
+
+    SetDefaultMode();
 }
 
 LevelEditor::~LevelEditor()
@@ -44,10 +54,19 @@ LevelEditor::~LevelEditor()
 
 void LevelEditor::Draw() const
 {
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+    glClear(GL_COLOR_BUFFER_BIT);
+
     switch (m_Mode)
     {
     case Mode::EditLevelScreen:
+        //Camera::TrackingInfo trackignInfo{ m_pCurLevelScreen->GetWidth(), m_pCurLevelScreen->GetHeight(), utils::GetRectCenter(m_pPlayer->GetBounds()) };
+        //m_pCamera->Aim(trackignInfo);
+        //m_pCamera->SetZoom(m_ResolutionScale);
+        Point2f levelScreenDimensions{ m_pCurLevelScreen->GetDimensions() };
+        m_pCamera->Aim(Rectf{ 0.f, 0.f, levelScreenDimensions.x, levelScreenDimensions.y });
         m_pCurLevelScreen->Draw();
+        m_pCamera->Reset();
         break;
     }
 }
@@ -82,11 +101,63 @@ void LevelEditor::PressedEnter()
 void LevelEditor::PressedEscape()
 {
     if (m_Mode != Mode::ModeSelect)
-        SetModeSelect();
+        SetDefaultMode();
+}
+
+void LevelEditor::PressedF()
+{
+    switch (m_Mode)
+    {
+    case Mode::EditLevelScreen:
+        m_pCamera->Focus();
+        break;
+    }
 }
 
 void LevelEditor::ClickedLMB()
 {
+}
+
+void LevelEditor::ScrollingMMB()
+{
+    switch (m_Mode)
+    {
+    case Mode::ModeSelect:
+        ScrollThroughModes();
+        break;
+    case Mode::EditLevelScreen:
+    {
+        int dir{ InputManager::GetMouseInfo().scrollDir };
+        m_pCamera->Zoom(dir);
+        break;
+    }
+    }
+}
+
+void LevelEditor::DraggingMMB()
+{
+    switch (m_Mode)
+    {
+    case Mode::EditLevelScreen:
+        Vector2f offset{ InputManager::GetMouseInfo().dragDist };
+        m_pCamera->Offset(offset);
+        break;
+    }
+}
+
+void LevelEditor::EditCurrentMode()
+{
+    switch (m_Mode)
+    {
+    case Mode::EditLevelScreen:
+        SelectLevelScreenToEdit();
+        break;
+    }
+}
+
+void LevelEditor::SetDefaultMode()
+{
+    SetSelectedMode(m_DefaultMode, true);
 }
 
 void LevelEditor::ScrollThroughModes()
@@ -109,11 +180,6 @@ void LevelEditor::ScrollThroughModes()
             modeIdx = m_NUM_MODES - 1;
     }
     SetSelectedMode(Mode(modeIdx));
-}
-
-void LevelEditor::SetModeSelect()
-{
-    SetSelectedMode(Mode::ModeSelect, true);
 }
 
 void LevelEditor::CreateLevel()
@@ -171,7 +237,7 @@ void LevelEditor::CreateLevelScreen()
     if (!pBlueprintSurface)
     {
         std::cout << "LevelEditor::CreateLevelScreen(): Didn't find: " << blueprintPath << std::endl;
-        SetModeSelect();
+        SetDefaultMode();
         return;
     }
     const SDL_PixelFormat& bpFormat{ *(pBlueprintSurface->format) };
@@ -219,8 +285,6 @@ void LevelEditor::EditLevelScreen()
 {
     if (!m_pCurLevelScreen)
         SelectLevelScreenToEdit();
-
-    //scale resolution
 }
 
 void LevelEditor::SelectLevelScreenToEdit()
@@ -235,7 +299,7 @@ void LevelEditor::SelectLevelScreenToEdit()
     if (!std::filesystem::exists(path))
     {
         std::cout << "LevelEditor::SelectLevelScreenToEdit(): Couldn't find: " << path << std::endl;
-        SetModeSelect();
+        SetDefaultMode();
         return;
     }
     //Load the levelScreen
@@ -287,7 +351,7 @@ void LevelEditor::CreateDirIfDoesntExist(const std::string& dir)
         if (!result)
         {
             std::cout << "LevelEditor::CreateDirIfDoesntExist(): couldn't create dir: " << dir << std::endl;
-            SetModeSelect();
+            SetDefaultMode();
         }
     }
 }
@@ -298,7 +362,7 @@ bool LevelEditor::IsFileOpen(std::ofstream& file)
     if (!file.is_open())
     {
         std::cout << "LevelEditor::IsFileOpen(): Error opening file." << std::endl;
-        SetModeSelect();
+        SetDefaultMode();
         return false;
     }
     else
