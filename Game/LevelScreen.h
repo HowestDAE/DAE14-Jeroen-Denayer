@@ -30,7 +30,7 @@ public:
 	LevelScreen(const LevelScreen& other) = delete;
 	LevelScreen& operator=(const LevelScreen& other) = delete;
 	LevelScreen(LevelScreen&& other) = delete;
-	LevelScreen& operator=(LevelScreen&& other) = delete;
+	LevelScreen& operator=(LevelScreen&& other) noexcept;
 
 	void Draw() const;
 	void Update(float dt);
@@ -44,12 +44,12 @@ public:
 	Point2f GetDimensions() const;
 	int GetWidth() const;
 	int GetHeight() const;
+
+	void LoadData();
+	void SaveData();
+	static void LoadGates(std::ifstream& fStream, std::vector<Gate>& gates);
 private:
 	//Functions
-	bool Load(const std::string& name);
-	uint8_t GetPixelID(const SDL_Surface* pSurface, int x, int y) const;
-	void FlipLevel();
-
 	CollisionDir GetCollisionDir(const Rectf& bounds, bool checkXDir = true, bool checkYDir = true, const Vector2f& velDist = Vector2f{}, float time = 0.f, bool checkVelDir = false) const;
 	void SetCollDirInfo(const Rectf& bounds, const Vector2f& velDist, CollisionInfo& ci) const;
 	bool CheckRowCollision(int row, int minCol, int maxCol) const;
@@ -58,12 +58,11 @@ private:
 	int PhysicsBodyOverlapsGate(PhysicsBody* pPhysicsBody);
 
 	Rectf GetGateRect(const Gate& gate) const;
-	TileIdx GetTileIdxFromIdx(int idx) const;
-	int GetIdxFromTileIdx(TileIdx tileIdx) const;
 	int GetTileID(TileIdx tileIdx) const;
 	int GetTileID(int row, int col) const;
 
 	//Members
+	std::string m_Name;
 	int m_Rows;
 	int m_Cols;
 	int m_TileSize;

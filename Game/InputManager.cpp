@@ -6,7 +6,6 @@ InputManager::InputManager()
 	, m_pSDLGameController{ nullptr }
 	, m_MouseInfo{ MouseInfo{} }
 	, m_ControllerInfo{ ControllerInfo{} }
-	, m_KeyInfo{ KeyInfo{} }
 	, m_CallBacks{ std::unordered_map<Event, std::vector<Callback>>{} }
 {
 }
@@ -48,10 +47,7 @@ void InputManager::IReset()
 	m_MouseInfo.pressedMMB = false;
 	m_MouseInfo.draggingMMB = false;
 
-	m_KeyInfo.pressedEnter = false;
-	m_KeyInfo.pressedEscape = false;
-	m_KeyInfo.pressedE = false;
-	m_KeyInfo.pressedF = false;
+	m_PressedKeys.clear();
 }
 
 void InputManager::IProcessKeyDownEvent(const SDL_KeyboardEvent& e)
@@ -59,22 +55,20 @@ void InputManager::IProcessKeyDownEvent(const SDL_KeyboardEvent& e)
 	switch (e.keysym.sym)
 	{
 	case SDLK_RETURN:
-		m_KeyInfo.pressedEnter = true;
-		TriggerCallBacks(Event::PressedEnter);
+		m_PressedKeys.emplace(Key::Enter);
 		break;
 	case SDLK_ESCAPE:
-		m_KeyInfo.pressedEscape = true;
-		TriggerCallBacks(Event::PressedEscape);
+		m_PressedKeys.emplace(Key::Escape);
 		break;
 	case SDLK_e:
-		m_KeyInfo.pressedE = true;
-		TriggerCallBacks(Event::PressedE);
+		m_PressedKeys.emplace(Key::E);
 		break;
 	case SDLK_f:
-		m_KeyInfo.pressedF = true;
-		TriggerCallBacks(Event::PressedF);
+		m_PressedKeys.emplace(Key::F);
 		break;
 	}
+	if (!m_PressedKeys.empty())
+		TriggerCallBacks(Event::KeyPressed);
 }
 
 void InputManager::IProcessKeyUpEvent(const SDL_KeyboardEvent& e)
@@ -199,6 +193,12 @@ void InputManager::RegisterCallback(Event e, Callback callback)
 	Get().m_CallBacks[e].push_back(callback);
 }
 
+bool InputManager::IsKeyPressed(Key key)
+{
+	const InputManager& am{ Get() };
+	return am.m_PressedKeys.find(key) != am.m_PressedKeys.end();
+}
+
 const InputManager::MouseInfo& InputManager::GetMouseInfo()
 {
 	return Get().m_MouseInfo;
@@ -207,9 +207,4 @@ const InputManager::MouseInfo& InputManager::GetMouseInfo()
 const InputManager::ControllerInfo& InputManager::GetControllerInfo()
 {
 	return Get().m_ControllerInfo;
-}
-
-const InputManager::KeyInfo& InputManager::GetKeyInfo()
-{
-	return Get().m_KeyInfo;
 }

@@ -94,6 +94,8 @@ namespace utils
 	Vector2f GetTileIdxPos(TileIdx tileIdx, int tileSize);
 	Rectf GetTileRect(TileIdx tileIdx, int tileSize);
 	Rectf GetTileAreaRect(TileIdx leftBottomIdx, TileIdx rightTopIdx, int tileSize);
+	TileIdx GetTileIdxFromIdx(int idx, int rows, int cols);
+	int GetIdxFromTileIdx(TileIdx tileIdx, int rows, int cols);
 #pragma endregion RectFunctionality
 
 #pragma region PhysicsFunctionality

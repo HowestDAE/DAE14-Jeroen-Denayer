@@ -6,24 +6,36 @@
 
 Camera::Camera(const Vector2f& boundary, const Vector2f& zoom)
 	: m_ScreenSize{ Vector2f{GameData::RENDER_RES_X(), GameData::RENDER_RES_Y()}}
-	, m_Boundary{ boundary }
-	, m_ConstrainToBoundary{ boundary != Vector2f{0.f, 0.f} }
+	, m_Boundary{}
+	, m_ConstrainToBoundary{}
 	, m_Offset{}
-	, m_BaseZoom{ zoom }
-	, m_Zoom{ zoom }
+	, m_BaseZoom{}
+	, m_Zoom{}
 	, m_MinZoom{ 0.25f }
 {
+	SetTarget(boundary, zoom);
+}
+
+void Camera::SetTarget(const Vector2f& boundary, const Vector2f& zoom)
+{
+	m_Boundary = boundary;
+	m_ConstrainToBoundary = boundary != Vector2f{ 0.f, 0.f };
+	m_Offset = Vector2f{};
+	m_BaseZoom = zoom;
+	m_Zoom = zoom;
 }
 
 void Camera::Aim(const Rectf& rect)
 {
 	//Center the pos on the screen
-	Transform centerScreen{ Vector2f{GameData::SCREEN_WIDTH() / 2, GameData::SCREEN_HEIGHT() / 2}, 0.f, Vector2f{1.f, 1.f} };
-	centerScreen.ApplyTransformation();
+	m_ScreenCenter = Vector2f{ GameData::SCREEN_WIDTH() / 2, GameData::SCREEN_HEIGHT() / 2 };
+	glPushMatrix();
+	glTranslatef(m_ScreenCenter.x, m_ScreenCenter.y, 0.f);
 
 	//Scale around the origin
-	Transform scaling{ Vector2f{}, 0.f, m_Zoom };
-	scaling.ApplyTransformation();
+	m_Scaling = m_Zoom;
+	glPushMatrix();
+	glScalef(m_Scaling.x, m_Scaling.y, 1.f);
 
 	//Center the pos around the origin
 	Vector2f screenLeftBottom{ rect.left + rect.width / 2 - m_ScreenSize.x / 2, rect.bottom + rect.height / 2 - m_ScreenSize.y / 2 };
@@ -42,8 +54,9 @@ void Camera::Aim(const Rectf& rect)
 	}
 
 	Vector2f offset{-screenLeftBottom - m_ScreenSize / 2};
-	Transform centerRect{ offset, 0.f, Vector2f{1.f, 1.f} };
-	centerRect.ApplyTransformation();
+	m_PosCenter = offset;
+	glPushMatrix();
+	glTranslatef(m_PosCenter.x, m_PosCenter.y, 0.f);
 }
 
 void Camera::Zoom(int dir)
@@ -72,4 +85,12 @@ void Camera::Reset()
 	glPopMatrix(); //Pop RectCentering
 	glPopMatrix(); //Pop Zooming
 	glPopMatrix(); //Pop ScreenCentering
+}
+
+Vector2f Camera::GetWorldPos(Vector2f screenPos) const
+{
+	screenPos += -m_ScreenCenter;
+	screenPos *= 1 / m_Scaling;
+	screenPos += -m_PosCenter;
+	return screenPos;
 }

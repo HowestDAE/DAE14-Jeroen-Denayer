@@ -17,7 +17,9 @@ struct Vector2f final
 	Vector2f operator-( ) const;
 	Vector2f operator+( ) const;
 	Vector2f& operator*=( float rhs);
+	Vector2f& operator*=(const Vector2f& rhs);
 	Vector2f& operator/=( float rhs);
+	Vector2f& operator/=( const Vector2f& rhs);
 	Vector2f& operator+=( const Vector2f& rhs);
 	Vector2f& operator-=( const Vector2f& rhs);
 	explicit operator Point2f(); 
@@ -89,6 +91,7 @@ Vector2f operator*( float lhs, Vector2f rhs );
 Vector2f operator*( Vector2f lhs, float rhs );
 Vector2f operator/( Vector2f lhs, float rhs );
 Vector2f operator/( Vector2f lhs, Vector2f rhs );
+Vector2f operator/( float lhs, Vector2f rhs );
 
 Vector2f operator+( Vector2f lhs, const Vector2f& rhs );
 Vector2f operator-( Vector2f lhs, const Vector2f& rhs );

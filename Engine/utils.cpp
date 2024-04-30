@@ -811,6 +811,24 @@ Rectf utils::GetTileAreaRect(TileIdx corner1, TileIdx corner2, int tileSize)
 	return Rectf{ leftBottom.x, leftBottom.y, rightTop.x - leftBottom.x, rightTop.y - leftBottom.y };
 }
 
+TileIdx utils::GetTileIdxFromIdx(int idx, int rows, int cols)
+{
+	TileIdx tileIdx{};
+	if (idx < 0 || idx >= rows * cols)
+		std::cout << "utils::GetTileIdxFromIdx(): idx out of bounds" << std::endl;
+	else
+		tileIdx = TileIdx{ idx / cols, idx % cols };
+	return tileIdx;
+}
+
+int utils::GetIdxFromTileIdx(TileIdx tileIdx, int rows, int cols)
+{
+	int idx{ -1 }; //invalid idx
+	if (tileIdx.r >= 0 && tileIdx.r < rows && tileIdx.c >= 0 && tileIdx.c < cols)
+		idx = tileIdx.r * cols + tileIdx.c;
+	return idx;
+}
+
 /*
 Calculate the acc needed to fall x dist in t time
 Also calculate the velocity needed to travel x dist with acc acting against object

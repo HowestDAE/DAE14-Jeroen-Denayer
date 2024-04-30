@@ -4,34 +4,14 @@
 #include "Madeline.h"
 #include "Camera.h"
 #include "GameData.h"
+#include "FileIO.h"
 
 Level::Level()
-	: m_pCamera{ nullptr }
+	: m_pCamera{ new Camera() }
 	, m_pPlayer{ nullptr }
 	, m_pCurLevelScreen{ nullptr }
+	, m_pNextLevelScreen{ nullptr }
 {
-	//Store data needed for loading all the levels
-	//To-DO: hardcoded atm, levelScreen should load it's own data from a file using only the levelScreenName
-	m_LevelScreensData = std::unordered_map<std::string, LevelScreenData>{
-		{"MainRoom",
-			{
-				"LevelScreensData/MainRoom.bmp",
-				std::vector<LevelScreen::Gate>{
-					{"SmallRoom", 0, LevelScreen::Gate::Side::Left, 6, 3},
-					{"SmallRoom", 1, LevelScreen::Gate::Side::Left, 50, 3},
-				}
-			}
-		},
-		{"SmallRoom",
-			{
-				"LevelScreensData/SmallRoom.bmp",
-				std::vector<LevelScreen::Gate>{
-					{"MainRoom", 0, LevelScreen::Gate::Side::Right, 2, 3},
-					{"MainRoom", 1, LevelScreen::Gate::Side::Right, 25, 3},
-				}
-			}
-		},
-	};
 	LoadLevel("MainRoom");
 
 	//Create the player Madeline
@@ -41,9 +21,6 @@ Level::Level()
 	Point2f pos{ 8 * 8, 2 * 8 };
 	m_pPlayer = new Madeline(pos, madelinePixWidth, madelinePixHeight);
 	m_pCurLevelScreen->AddPhysicsBody(m_pPlayer);
-
-	//Create the camera
-	m_pCamera = new Camera(Vector2f{m_pCurLevelScreen->GetDimensions()}, Vector2f{GameData::RES_SCALE_X(), GameData::RES_SCALE_Y()});
 }
 
 Level::~Level()
@@ -73,10 +50,23 @@ void Level::Update(float dt)
 
 void Level::LoadLevel(const std::string& name)
 {
-	if (m_pCurLevelScreen) //delete existing levelScreen
-		delete m_pCurLevelScreen;
+	if (m_pNextLevelScreen)
+		*m_pNextLevelScreen = std::move(*new LevelScreen(name, this));
+	else
+		m_pNextLevelScreen = new LevelScreen(name, this);
 
-	m_pCurLevelScreen = new LevelScreen(name, this);
+	if (!m_pCurLevelScreen)
+	{
+		m_pCurLevelScreen = m_pNextLevelScreen;
+		m_pNextLevelScreen = nullptr;
+	}
+	else
+	{
+		*m_pCurLevelScreen = std::move(*m_pNextLevelScreen); //move assignment
+		m_pNextLevelScreen = nullptr;
+	}
+
+	m_pCamera->SetTarget(Vector2f{ m_pCurLevelScreen->GetDimensions() }, Vector2f{ GameData::RES_SCALE_X(), GameData::RES_SCALE_Y() });
 }
 
 /*
@@ -91,23 +81,21 @@ bool Level::TransferPhysicsBody(PhysicsBody* pPhysicsBody, const LevelScreen::Ga
 	bool movedToNewLevel{};
 	if (m_pPlayer && pPhysicsBody == m_pPlayer)
 	{
-		std::unordered_map<std::string, LevelScreenData>::iterator it{ m_LevelScreensData.find(srcGate.connectedLevelScreenName) };
-		if (it != m_LevelScreensData.end()) //found level
+		std::ifstream fileStream{ FileIO::OpenTxtFile(srcGate.connectedLevelScreenName, FileIO::Dir::LevelScreenData) };
+		if (fileStream)
 		{
-			const std::string& nextLevelScreenName{ it->first };
-			const LevelScreenData& nextLevelScreenInitData{ it->second };
-
+			std::vector<LevelScreen::Gate> gates{};
+			LevelScreen::LoadGates(fileStream, gates);
 			//check if a matching gate exists
-			std::vector<LevelScreen::Gate>& nextLevelScreenGates{ m_LevelScreensData[nextLevelScreenName].gates };
-			if (srcGate.dstGateIdx >= 0 && srcGate.dstGateIdx < nextLevelScreenGates.size()) //connectedGateIdx maps to an existing gate
+			if (srcGate.dstGateIdx >= 0 && srcGate.dstGateIdx < gates.size())
 			{
-				LevelScreen::Gate& dstGate{ nextLevelScreenGates[srcGate.dstGateIdx] };
+				LevelScreen::Gate& dstGate{ gates[srcGate.dstGateIdx] };
 				//check if the dstGate is on the opposite side and with equal length to the srcGate
 				bool srcGateIsVertical{ int(srcGate.side) % 2 == 0 };
 				bool dstGateIsVertical{ int(dstGate.side) % 2 == 0 };
 				if (srcGateIsVertical == dstGateIsVertical && srcGate.side != dstGate.side && srcGate.length == dstGate.length)
 				{
-					LoadLevel(nextLevelScreenName);
+					LoadLevel(srcGate.connectedLevelScreenName);
 					//Transfer the player to this new level via the dstGate
 					m_pCurLevelScreen->AddPhysicsBodyThroughGate(pPhysicsBody, dstGate);
 					movedToNewLevel = true;

@@ -12,12 +12,6 @@ class Camera;
 class Level final
 {
 public:
-	struct LevelScreenData
-	{
-		std::string filePath;
-		std::vector<LevelScreen::Gate> gates;
-	};
-
 	Level();
 	~Level();
 	Level(const Level& other) = delete;
@@ -33,10 +27,10 @@ private:
 	bool TransferPhysicsBody(PhysicsBody* pPhysicsBody, const LevelScreen::Gate& srcGate);
 
 	//Members
-	std::unordered_map<std::string, LevelScreenData> m_LevelScreensData; //TO-DO: LevelScreen should load/hold it's own data
 	Camera* m_pCamera;
 	PhysicsBody* m_pPlayer;
 	LevelScreen* m_pCurLevelScreen;
+	LevelScreen* m_pNextLevelScreen;
 
 	friend void LevelScreen::Update(float dt);
 };

@@ -15,18 +15,22 @@ public:
 	void Draw() const;
 	void Update(float dt);
 private:
-	void PressedEnter();
-	void PressedEscape();
-	void PressedF();
-	void ClickedLMB();
-	void ScrollingMMB();
-	void DraggingMMB();
-	void EditCurrentMode();
-
 	enum class Mode
 	{
 		ModeSelect, RunLevel, CreateLevel, EditLevel, CreateLevelScreen, EditLevelScreen
 	};
+
+	enum class EditLevelScreenModes
+	{
+		None, Gate
+	};
+
+	//Callback functions
+	void KeyPressed();
+	void ClickedLMB();
+	void ScrollingMMB();
+	void DraggingMMB();
+	void EditCurrentMode();
 
 	//Functions
 	void SetDefaultMode();
@@ -46,13 +50,12 @@ private:
 	void PrintHeader(const std::string& text);
 
 	//Members
-	Camera* m_pCamera;
-	int m_NUM_MODES;
 	Mode m_DefaultMode;
 	Mode m_Mode;
 	Mode m_SelectedMode;
 	std::vector<std::string> m_MODE_NAMES;
-	bool m_EnteredMode;
+
+	Camera* m_pCamera;
 	Level* m_pCurLevel;
 	LevelScreen* m_pCurLevelScreen;
 };

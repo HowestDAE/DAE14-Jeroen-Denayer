@@ -6,79 +6,20 @@
 #include <fstream>
 #include <sstream>
 #include "AssetManager.h"
+#include "GameData.h"
+#include "FileIO.h"
 
 LevelScreen::LevelScreen(const std::string& name, Level* pLevel)
-	: m_TileSize{ 8 }
-	, m_PixPerM{ 8 }
-	, m_pPhysicsBodies{}
+	: m_Name{ name }
+	, m_TileSize{ GameData::TILE_SIZE_PIX() }
+	, m_PixPerM{ GameData::PIX_PER_M() }
+	, m_pPhysicsBodies{ std::vector<PhysicsBody*>{} }
 	, m_pLevel{ pLevel }
 	, m_pTextures{ std::vector<Texture*>{} }
 	, m_IdToTextureIdx{ std::vector<int>{} }
-	, m_Gates{}
+	, m_Gates{ std::vector<Gate>{} }
 {
-	Load(name);
-
-	//Load metadata from file
-	const std::string& dir{ AssetManager::GetDir(AssetManager::Dir::LevelScreenData) };
-	std::string metadataFilePath{ dir + name + ".txt" };
-	std::ifstream metadataFile{ metadataFilePath };
-
-	if (!metadataFile.is_open())
-	{
-		std::cout << "LevelScreen::LevelScreen(): Couldn't open file: " << metadataFilePath << std::endl;
-		Texture* pTexture{ AssetManager::GetTexture("") };
-		m_pTextures.push_back(pTexture);
-		m_IdToTextureIdx = std::vector<int>{ 0 };
-		return;
-	}
-	else 
-	{
-		//To-Do: improve reading from file, less hardcoded stuff
-		std::string line{};
-		int nrLinesToRead{ 2 };
-		enum class VariableName
-		{
-			TextureNames, IdToTextureIdxArr
-		};
-		VariableName variableName{};
-		for (int i = 0; i < nrLinesToRead; i++) {
-			std::getline(metadataFile, line);
-			std::stringstream stream{ line };
-			std::string s{}; //read first part, should be the variable name
-			stream >> s;
-			if (s == "TextureNames:")
-				variableName = VariableName::TextureNames;
-			else if (s == "IdToTextureIdx:")
-				variableName = VariableName::IdToTextureIdxArr;
-
-			while (stream.rdbuf()->in_avail())
-			{
-				switch (variableName)
-				{
-				case VariableName::TextureNames:
-				{
-					std::string textureName{};
-					stream >> textureName;
-					Texture* pTexture{ AssetManager::GetTexture(textureName) };
-					m_pTextures.push_back(pTexture);
-					break;
-				}
-				case VariableName::IdToTextureIdxArr:
-				{
-					int idx{};
-					stream >> idx;
-					m_IdToTextureIdx.push_back(idx);
-					break;
-				}
-				}
-			}
-		}
-		metadataFile.close();
-	}
-
-	//Texture* pTexture{ AssetManager::GetTexture(textureName) };
-	//m_pTextures.push_back(pTexture);
-	//m_IdToTextureIdx = std::vector<int>{ -1, -1, 0, 0, 1 };
+	LoadData();
 }
 
 LevelScreen::~LevelScreen()
@@ -90,11 +31,41 @@ LevelScreen::~LevelScreen()
 		delete pPhysicsBody;
 }
 
+LevelScreen& LevelScreen::operator=(LevelScreen&& other) noexcept
+{
+	if (this != &other)
+	{
+		//shallow copy
+		m_Name = std::move(other.m_Name);
+		m_Rows = std::move(other.m_Rows);
+		m_Cols = std::move(other.m_Cols);
+		m_TileSize = std::move(other.m_TileSize);
+		m_Width = std::move(other.m_Width);
+		m_Height = std::move(other.m_Height);
+		m_PixPerM = std::move(other.m_PixPerM);
+		m_pLevel = std::move(other.m_pLevel);
+		m_IdToTextureIdx = std::move(other.m_IdToTextureIdx);
+		//deep copy
+		for (Texture* pTexture : m_pTextures)
+			AssetManager::RemoveTexture(pTexture);
+		m_pTextures = std::move(other.m_pTextures);
+		m_Data = std::move(other.m_Data);
+		for (PhysicsBody* pPhysicsBody : m_pPhysicsBodies)
+		{
+			delete pPhysicsBody;
+			pPhysicsBody = nullptr;
+		}
+		m_pPhysicsBodies = std::move(other.m_pPhysicsBodies);
+		m_Gates = std::move(other.m_Gates);
+	}
+	return *this;
+}
+
 void LevelScreen::Draw() const
 {
 	for (int i{}; i < m_Data.size(); ++i)
 	{
-		TileIdx tileIdx{ GetTileIdxFromIdx(i) };
+		TileIdx tileIdx{ utils::GetTileIdxFromIdx(i, m_Rows, m_Cols) };
 		int ID{ m_Data[i] };
 		float x{ float(tileIdx.c * m_TileSize) };
 		float y{ float(tileIdx.r * m_TileSize) };
@@ -291,64 +262,71 @@ int LevelScreen::GetHeight() const
 //Level Loading Functions
 //##########################
 
-bool LevelScreen::Load(const std::string& name)
+void LevelScreen::LoadData()
 {
-	bool succes{ false };
-	const std::string& dir{ AssetManager::GetDir(AssetManager::Dir::LevelScreenData) };
-	std::string path{ dir + name + ".bmp" };
-	SDL_Surface* pSurface{ IMG_Load(path.c_str()) };
-	if (pSurface == nullptr)
-	{
-		std::cout << "LevelScreen::Load() Couldn't load: " << path << std::endl;
-		return succes;
-	}
-
-	succes = true;
-	m_Rows = pSurface->h;
-	m_Cols = pSurface->w;
+	//Load texture into m_Data
+	FileIO::LoadTexture(m_Name, m_Data, m_Rows, m_Cols);
 	m_Width = float(m_Cols * m_TileSize);
 	m_Height = float(m_Rows * m_TileSize);
-	//Reserve only necessary space for level
-	m_Data = std::vector<uint8_t>(m_Rows * m_Cols);
 
-	for (int i{}; i < m_Rows * m_Cols; ++i)
+	//Load metadata from file
+	std::ifstream fileStream{ FileIO::OpenTxtFile(m_Name, FileIO::Dir::LevelScreenData) };
+
+	if (fileStream)
 	{
-		TileIdx tileIdx{ GetTileIdxFromIdx(i) };
-		uint8_t pixelID{ GetPixelID(pSurface, tileIdx.c, tileIdx.r) };
-		m_Data[i] = pixelID;
+		LevelScreen::LoadGates(fileStream, m_Gates);
+		std::vector<std::string> textureNames{};
+		FileIO::LoadStringArr(fileStream, textureNames);
+		AssetManager::GetTextures(textureNames, m_pTextures);
+		FileIO::LoadIntArr(fileStream, m_IdToTextureIdx);
 	}
-	FlipLevel();
-
-	return succes;
-}
-
-void LevelScreen::FlipLevel()
-{
-	for (int srcIdx{}; srcIdx < int(m_Rows * m_Cols / 2); ++srcIdx)
+	else
 	{
-		int temp{ m_Data[srcIdx] };
-		TileIdx srcTileIdx{ GetTileIdxFromIdx(srcIdx) };
-		TileIdx dstTileIdx{ m_Rows - 1 - srcTileIdx.r, srcTileIdx.c };
-		int dstIdx{ GetIdxFromTileIdx(dstTileIdx) };
-		m_Data[srcIdx] = m_Data[dstIdx];
-		m_Data[dstIdx] = temp;
+		m_pTextures = std::vector<Texture*>{ AssetManager::GetTexture("") };
+		m_IdToTextureIdx = std::vector<int>{ 0 };
 	}
 }
 
-uint8_t LevelScreen::GetPixelID(const SDL_Surface* pSurface, int x, int y) const
+void LevelScreen::SaveData()
 {
-	// Bytes per pixel
-	const Uint8 Bpp = pSurface->format->BytesPerPixel;
 
-	/*
-	Retrieve the address to a specific pixel
-	pSurface->pixels	= an array containing the SDL_Surface' pixels
-	pSurface->pitch		= the length of a row of pixels (in bytes)
-	X and Y				= the offset on where on the image to retrieve the pixel, (0, 0) is in the upper left corner of the image
-	*/
-	Uint8* pPixel = (Uint8*)pSurface->pixels + y * pSurface->pitch + x * Bpp;
-	return *pPixel;
 }
+
+void LevelScreen::LoadGates(std::ifstream& fStream, std::vector<Gate>& gates)
+{
+	std::string line{};
+	std::getline(fStream, line);
+	std::stringstream sstream{ line };
+	std::string s{};
+	sstream >> s; //extract name
+	while (sstream.rdbuf()->in_avail()) //nr characters it can still read
+	{
+		std::string sGate{};
+		sstream >> sGate;
+		std::stringstream gateStream{ sGate };
+		Gate gate{};
+		std::string value{};
+		std::getline(gateStream, value, ',');
+		gate.connectedLevelScreenName = value;
+		std::getline(gateStream, value, ',');
+		gate.dstGateIdx = std::stoi(value);
+		std::getline(gateStream, value, ',');
+		if (value == "Left")
+			gate.side = Gate::Side::Left;
+		else if (value == "Top")
+			gate.side = Gate::Side::Top;
+		else if (value == "Right")
+			gate.side = Gate::Side::Right;
+		else if (value == "Bottom")
+			gate.side = Gate::Side::Bottom;
+		std::getline(gateStream, value, ',');
+		gate.startIdx = std::stoi(value);
+		std::getline(gateStream, value, ',');
+		gate.length = std::stoi(value);
+		gates.push_back(gate);
+	}
+}
+
 
 //##########################
 //Collision Functions
@@ -535,24 +513,6 @@ Rectf LevelScreen::GetGateRect(const Gate& gate) const
 		gateEndIdx.c += gate.length;
 	return Rectf{ utils::GetTileAreaRect(gateStartIdx, gateEndIdx, m_TileSize) };
 }
- 
-TileIdx LevelScreen::GetTileIdxFromIdx(int idx) const
-{
-	TileIdx tileIdx{};
-	if (idx < 0 || idx >= m_Rows * m_Cols)
-		std::cout << "LevelScreen::GetRowAndCol(int idx): idx out of bounds" << std::endl;
-	else
-		tileIdx = TileIdx{ idx / m_Cols, idx % m_Cols };
-	return tileIdx;
-}
-
-int LevelScreen::GetIdxFromTileIdx(TileIdx tileIdx) const
-{
-	int idx{ -1 }; //invalid idx
-	if (tileIdx.r >= 0 && tileIdx.r < m_Rows && tileIdx.c >= 0 && tileIdx.c < m_Cols)
-		idx = tileIdx.r * m_Cols + tileIdx.c;
-	return idx;
-}
 
 int LevelScreen::GetTileID(TileIdx tileIdx) const
 {
@@ -562,7 +522,7 @@ int LevelScreen::GetTileID(TileIdx tileIdx) const
 int LevelScreen::GetTileID(int row, int col) const
 {
 	int tileID{ -1 }; //invalid tileID
-	int idx{ GetIdxFromTileIdx(TileIdx{ row, col }) };
+	int idx{ utils::GetIdxFromTileIdx(TileIdx{ row, col }, m_Rows, m_Cols) };
 	if (idx >= 0 && idx < m_Rows * m_Cols)
 		tileID = m_Data[idx];
 

@@ -1,5 +1,6 @@
 #pragma once
 #include <unordered_map>
+#include <unordered_set>
 #include <functional>
 
 class InputManager final
@@ -22,7 +23,12 @@ public:
 
 	enum class Event
 	{
-		ClickedLMB, ScrollingMMB, DraggingMMB, PressedEnter, PressedEscape, PressedE, PressedF
+		ClickedLMB, ScrollingMMB, DraggingMMB, KeyPressed
+	};
+
+	enum class Key
+	{
+		Enter, Escape, E, F, G
 	};
 
 	struct MouseInfo
@@ -46,20 +52,12 @@ public:
 		bool pressingRightTrigger;
 	};
 
-	struct KeyInfo
-	{
-		bool pressedEnter;
-		bool pressedEscape;
-		bool pressedE;
-		bool pressedF;
-	};
-
 	typedef std::function<void()> Callback;
 	static void RegisterCallback(Event e, Callback callback);
 
+	static bool IsKeyPressed(Key key);
 	static const MouseInfo& GetMouseInfo();
 	static const ControllerInfo& GetControllerInfo();
-	static const KeyInfo& GetKeyInfo();
 private:
 	InputManager();
 
@@ -81,7 +79,7 @@ private:
 	SDL_GameController* m_pSDLGameController;
 	MouseInfo m_MouseInfo;
 	ControllerInfo m_ControllerInfo;
-	KeyInfo m_KeyInfo;
+	std::unordered_set<Key> m_PressedKeys;
 	std::unordered_map<Event, std::vector<Callback>> m_CallBacks;
 };
 

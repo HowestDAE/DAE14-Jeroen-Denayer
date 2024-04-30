@@ -9,38 +9,29 @@
 #include "InputManager.h"
 #include "GameData.h"
 #include <functional>
+#include "FileIO.h"
 
 LevelEditor::LevelEditor()
-	: m_pCamera{ new Camera() }
-    , m_DefaultMode{ Mode::ModeSelect }
+	: m_DefaultMode{ Mode::ModeSelect }
     , m_Mode{}
     , m_SelectedMode{}
-    , m_NUM_MODES{ 6 }
     , m_MODE_NAMES{ std::vector<std::string>{"ModeSelect", "RunLevel", "CreateLevel", "EditLevel", "CreateLevelScreen", "EditLevelScreen"} }
+    , m_pCamera{ new Camera() }
     , m_pCurLevel{ nullptr }
     , m_pCurLevelScreen{ nullptr }
 {
     //To-Do: wrap this in a function
-    std::function<void(void)> fPressedEnter = std::bind(&LevelEditor::PressedEnter, this);
-    InputManager::RegisterCallback(InputManager::Event::PressedEnter, fPressedEnter);
-
-    std::function<void(void)> fPressedEscape = std::bind(&LevelEditor::PressedEscape, this);
-    InputManager::RegisterCallback(InputManager::Event::PressedEscape, fPressedEscape); 
-
     std::function<void(void)> fClickedLMB = std::bind(&LevelEditor::ClickedLMB, this);
     InputManager::RegisterCallback(InputManager::Event::ClickedLMB, fClickedLMB);
 
     std::function<void(void)> fScrollingMMB = std::bind(&LevelEditor::ScrollingMMB, this);
     InputManager::RegisterCallback(InputManager::Event::ScrollingMMB, fScrollingMMB);
     
-    std::function<void(void)> fEditCurrentMode = std::bind(&LevelEditor::EditCurrentMode, this);
-    InputManager::RegisterCallback(InputManager::Event::PressedE, fEditCurrentMode);
-    
     std::function<void(void)> fDraggingMMB = std::bind(&LevelEditor::DraggingMMB, this);
     InputManager::RegisterCallback(InputManager::Event::DraggingMMB, fDraggingMMB);
-
-    std::function<void(void)> fPressedF = std::bind(&LevelEditor::PressedF, this);
-    InputManager::RegisterCallback(InputManager::Event::PressedF, fPressedF);
+    
+    std::function<void(void)> fKeyPressed = std::bind(&LevelEditor::KeyPressed, this);
+    InputManager::RegisterCallback(InputManager::Event::KeyPressed, fKeyPressed);
 
     SetDefaultMode();
 }
@@ -60,9 +51,6 @@ void LevelEditor::Draw() const
     switch (m_Mode)
     {
     case Mode::EditLevelScreen:
-        //Camera::TrackingInfo trackignInfo{ m_pCurLevelScreen->GetWidth(), m_pCurLevelScreen->GetHeight(), utils::GetRectCenter(m_pPlayer->GetBounds()) };
-        //m_pCamera->Aim(trackignInfo);
-        //m_pCamera->SetZoom(m_ResolutionScale);
         Point2f levelScreenDimensions{ m_pCurLevelScreen->GetDimensions() };
         m_pCamera->Aim(Rectf{ 0.f, 0.f, levelScreenDimensions.x, levelScreenDimensions.y });
         m_pCurLevelScreen->Draw();
@@ -73,46 +61,32 @@ void LevelEditor::Draw() const
 
 void LevelEditor::Update(float dt)
 {
-    if (m_EnteredMode)
+    switch (m_Mode)
     {
-        switch (m_Mode)
-        {
-        //case Mode::ModeSelect:
-        //    if (InputManager::GetMouseInfo().scrollingMMB)
-        //        ScrollThroughModes();
-        //    break;
-        case Mode::EditLevelScreen:
-            EditLevelScreen();
-            break;
-        }
+    case Mode::EditLevelScreen:
+        EditLevelScreen();
+        break;
     }
 }
 
-void LevelEditor::PressedEnter()
+void LevelEditor::KeyPressed()
 {
     switch (m_Mode)
     {
     case Mode::ModeSelect:
-        EnterSelectedMode();
+        if (InputManager::IsKeyPressed(InputManager::Key::Enter))
+            EnterSelectedMode();
+        break;
+    case Mode::EditLevelScreen:
+        if (InputManager::IsKeyPressed(InputManager::Key::F))
+            m_pCamera->Focus();
         break;
     }
-}
 
-void LevelEditor::PressedEscape()
-{
-    if (m_Mode != Mode::ModeSelect)
+    if (m_Mode != Mode::ModeSelect && InputManager::IsKeyPressed(InputManager::Key::Escape))
         SetDefaultMode();
 }
 
-void LevelEditor::PressedF()
-{
-    switch (m_Mode)
-    {
-    case Mode::EditLevelScreen:
-        m_pCamera->Focus();
-        break;
-    }
-}
 
 void LevelEditor::ClickedLMB()
 {
@@ -170,14 +144,14 @@ void LevelEditor::ScrollThroughModes()
     if (direction > 0)
     {
         ++modeIdx;
-        if (modeIdx > m_NUM_MODES - 1)
+        if (modeIdx > m_MODE_NAMES.size() - 1)
             modeIdx = 1;
     }
     else if (direction < 0)
     {
         --modeIdx;
         if (modeIdx < 1)
-            modeIdx = m_NUM_MODES - 1;
+            modeIdx = m_MODE_NAMES.size() - 1;
     }
     SetSelectedMode(Mode(modeIdx));
 }
@@ -191,7 +165,7 @@ void LevelEditor::CreateLevel()
 	std::cout << "Enter a level name: ";
 	std::cin >> levelName;
 
-    const std::string& dir(AssetManager::GetDir(AssetManager::Dir::LevelData));
+    const std::string& dir(FileIO::GetDir(FileIO::Dir::LevelData));
     CreateDirIfDoesntExist(dir);
 
     //Create metadata file for level
@@ -228,7 +202,7 @@ void LevelEditor::CreateLevelScreen()
     std::cout << "Enter the number of columns: ";
     std::cin >> cols;
 
-    const std::string& dir{ AssetManager::GetDir(AssetManager::Dir::LevelScreenData) };
+    const std::string& dir{ FileIO::GetDir(FileIO::Dir::LevelScreenData) };
     CreateDirIfDoesntExist(dir);
 
     std::string blueprintPath{ dir + "Blueprint.bmp" };
@@ -283,8 +257,8 @@ void LevelEditor::CreateLevelScreen()
 
 void LevelEditor::EditLevelScreen()
 {
-    if (!m_pCurLevelScreen)
-        SelectLevelScreenToEdit();
+    Vector2f mousePos{ InputManager::GetMouseInfo().pos };
+    Vector2f worldPos{ m_pCamera->GetWorldPos(mousePos) };
 }
 
 void LevelEditor::SelectLevelScreenToEdit()
@@ -294,7 +268,7 @@ void LevelEditor::SelectLevelScreenToEdit()
     std::cout << "Enter a level screen name: ";
     std::string name{};
     std::cin >> name;
-    const std::string& dir{ AssetManager::GetDir(AssetManager::Dir::LevelScreenData) };
+    const std::string& dir{ FileIO::GetDir(FileIO::Dir::LevelScreenData) };
     std::string path{ dir + name + ".bmp"};
     if (!std::filesystem::exists(path))
     {
@@ -322,11 +296,9 @@ void LevelEditor::EnterSelectedMode()
 {
     m_Mode = m_SelectedMode;
     std::cout << "Mode changed to: " << m_MODE_NAMES[int(m_Mode)] << std::endl;
-    m_EnteredMode = true;
     switch (m_Mode)
     {
     case Mode::ModeSelect:
-        m_EnteredMode = false;
         std::cout << "Use scroll wheel to select a mode." << std::endl;
         break;
     case Mode::CreateLevel:

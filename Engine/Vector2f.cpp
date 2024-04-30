@@ -133,9 +133,23 @@ Vector2f& Vector2f::operator*=(float rhs)
 	return *this;
 }
 
+Vector2f& Vector2f::operator*=(const Vector2f& rhs)
+{
+	x *= rhs.x;
+	y *= rhs.y;
+	return *this;
+}
+
 Vector2f& Vector2f::operator/=(float rhs)
 {
 	*this *= 1 / rhs;
+	return *this;
+}
+
+Vector2f& Vector2f::operator/=(const Vector2f& rhs)
+{
+	x *= 1 / rhs.x;
+	y *= 1 / rhs.y;
 	return *this;
 }
 
@@ -181,6 +195,11 @@ Vector2f operator/(Vector2f lhs, Vector2f rhs)
 		return Vector2f{ 0.f, 0.f };
 	else
 		return Vector2f{ lhs.x / rhs.x, lhs.y / rhs.y };
+}
+
+Vector2f operator/(float lhs, Vector2f rhs)
+{
+	return Vector2f{lhs / rhs.x, lhs / rhs.y};
 }
 
 Vector2f operator+( Vector2f lhs, const Vector2f& rhs )
