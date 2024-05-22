@@ -7,12 +7,14 @@
 #include "FileIO.h"
 
 Level::Level()
-	: m_pCamera{ new Camera() }
+	: m_IsValid{ true }
+	, m_pCamera{ new Camera() }
 	, m_pPlayer{ nullptr }
 	, m_pCurLevelScreen{ nullptr }
 	, m_pNextLevelScreen{ nullptr }
 {
 	LoadLevel("MainRoom");
+	m_IsValid = m_pCurLevelScreen->IsValid();
 
 	//Create the player Madeline
 	float madelinePixWidth{ 8 };
@@ -38,14 +40,28 @@ void Level::Draw() const
 
 	m_pCamera->Aim(m_pPlayer->GetBounds());
 
-	m_pCurLevelScreen->Draw();
+	if (m_pCurLevelScreen)
+		m_pCurLevelScreen->Draw();
 
 	m_pCamera->Reset();
 }
 
 void Level::Update(float dt)
 {
-	m_pCurLevelScreen->Update(dt);
+	bool actionRequired{};
+	if (m_pCurLevelScreen)
+		actionRequired = m_pCurLevelScreen->Update(dt);
+	if (actionRequired)
+	{
+		std::unordered_map<PhysicsBody*, LevelScreen::Gate&>& physicsBodiesOverlappingGates{ m_pCurLevelScreen->GetPhysicsBodiesOverlapingGates() };
+		for (auto it{ physicsBodiesOverlappingGates.begin() }; it != physicsBodiesOverlappingGates.end(); ++it)
+			TransferPhysicsBody((*it).first, (*it).second);
+	}
+}
+
+bool Level::IsValid() const
+{
+	return m_IsValid;
 }
 
 void Level::LoadLevel(const std::string& name)
@@ -76,9 +92,9 @@ then the old level is deleted, the new level is instantiated, and the player is 
 to this new level
 Return: true if the player moved to a new level, otherwise false
 */
-bool Level::TransferPhysicsBody(PhysicsBody* pPhysicsBody, const LevelScreen::Gate& srcGate)
+void Level::TransferPhysicsBody(PhysicsBody* pPhysicsBody, const LevelScreen::Gate& srcGate)
 {
-	bool movedToNewLevel{};
+	bool deletePhysicsBody{true};
 	if (m_pPlayer && pPhysicsBody == m_pPlayer)
 	{
 		std::ifstream fileStream{ FileIO::OpenTxtFile(srcGate.connectedLevelScreenName, FileIO::Dir::LevelScreenData) };
@@ -98,14 +114,12 @@ bool Level::TransferPhysicsBody(PhysicsBody* pPhysicsBody, const LevelScreen::Ga
 					LoadLevel(srcGate.connectedLevelScreenName);
 					//Transfer the player to this new level via the dstGate
 					m_pCurLevelScreen->AddPhysicsBodyThroughGate(pPhysicsBody, dstGate);
-					movedToNewLevel = true;
+					deletePhysicsBody = false;
 				}
 			}
 		}
 	}
 	
-	if (!movedToNewLevel)
+	if (deletePhysicsBody)
 		delete pPhysicsBody;
-
-	return movedToNewLevel;
 }

@@ -5,38 +5,43 @@
 #include "InputManager.h"
 #include "AssetManager.h"
 #include "GameData.h"
-#include "Transform.h"
+#include "Button.h"
+#include <functional>
 
 Game::Game( const Window& window ) 
 	: BaseGame{ window }
-	, m_Mode{ Mode::PlayLevel }
+	, m_RunGame{ true }
+	, m_MainMenu{ UIPanel("MainMenuBg") }
 	, m_pActiveLvl{ nullptr }
 	, m_pLevelEditor{ nullptr }
 {
 	Rectf viewport{ GetViewPort() };
 
-	GameData::Init(viewport);
-	InputManager::Init(m_SDLGameController);
+	CreateMainMenu();
+	GameData::Init(viewport, GameData::Mode::Menu);
 
-	switch (m_Mode)
+	switch (GameData::GetMode())
 	{
-	case Mode::PlayLevel:
-		m_pActiveLvl = new Level();
+	case GameData::Mode::PlayLevel:
+		Play();
 		break;
-	case Mode::RunEditor:
-		m_pLevelEditor = new LevelEditor();
+	case GameData::Mode::RunEditor:
+		RunEditor();
 		break;
 	}
+
+	BindInputEvents();
 }
 
 Game::~Game( )
 {
-	delete m_pLevelEditor;
-	delete m_pActiveLvl;
-	AssetManager::Cleanup();
+	if (m_pLevelEditor)
+		delete m_pLevelEditor;
+	if (m_pActiveLvl)
+		delete m_pActiveLvl;
 }
 
-void Game::Update( float elapsedSec )
+bool Game::Update( float elapsedSec )
 {
 	//const Uint8* pKeyStates = SDL_GetKeyboardState(nullptr);
 	//if (pKeyStates[SDL_SCANCODE_LEFT]) xAxis = -1.f;
@@ -47,64 +52,111 @@ void Game::Update( float elapsedSec )
 	
 	InputManager::Update();
 
-	switch (m_Mode)
+	switch (GameData::GetMode())
 	{
-	case Mode::PlayLevel:
+	case GameData::Mode::Menu:
+		m_MainMenu.Update(elapsedSec);
+		break;
+	case GameData::Mode::PlayLevel:
 		m_pActiveLvl->Update(elapsedSec);
 		break;
-	case Mode::RunEditor:
+	case GameData::Mode::RunEditor:
 		m_pLevelEditor->Update(elapsedSec);
 		break;
 	}
 
 	InputManager::Reset();
+
+	return m_RunGame;
 }
 
 void Game::Draw( ) const
 {
-	switch (m_Mode)
+	switch (GameData::GetMode())
 	{
-	case Mode::PlayLevel:
+	case GameData::Mode::Menu:
+		m_MainMenu.Draw();
+		break;
+	case GameData::Mode::PlayLevel:
 		m_pActiveLvl->Draw();
 		break;
-	case Mode::RunEditor:
+	case GameData::Mode::RunEditor:
 		m_pLevelEditor->Draw();
 		break;
 	}
 
-	Rectf vp{ GetViewPort() };
-
-	utils::SetColor(Color4f{ 1.f, 0.f, 0.f, 1.f });
-	utils::DrawLine(Point2f{ vp.width / 2, 0.f }, Point2f{ vp.width / 2, vp.height }, 2.f);
-	utils::DrawLine(Point2f{ 0.f, vp.height / 2 }, Point2f{ vp.width, vp.height / 2 }, 2.f);
+	////Draw center lines
+	//Rectf vp{ GetViewPort() };
+	//utils::SetColor(Color4f{ 1.f, 0.f, 0.f, 1.f });
+	//utils::DrawLine(Point2f{ vp.width / 2, 0.f }, Point2f{ vp.width / 2, vp.height }, 2.f);
+	//utils::DrawLine(Point2f{ 0.f, vp.height / 2 }, Point2f{ vp.width, vp.height / 2 }, 2.f);
 }
 
-void Game::ProcessKeyDownEvent( const SDL_KeyboardEvent & e )
+bool Game::HandleEvent(SDL_Event& e) const
 {
-	InputManager::ProcessKeyDownEvent(e);
+	return InputManager::HandleEvent(e);
 }
 
-void Game::ProcessKeyUpEvent( const SDL_KeyboardEvent& e )
+void Game::Play()
 {
-	InputManager::ProcessKeyUpEvent(e);
+	m_pActiveLvl = new Level();
+	if (!m_pActiveLvl->IsValid())
+	{
+		delete m_pActiveLvl;
+		m_pActiveLvl = nullptr;
+	}
+	else
+		GameData::SetMode(GameData::Mode::PlayLevel);
 }
 
-void Game::ProcessMouseMotionEvent( const SDL_MouseMotionEvent& e )
+void Game::RunEditor()
 {
-	InputManager::ProcessMouseMotionEvent(e);
+	m_pLevelEditor = new LevelEditor();
+	GameData::SetMode(GameData::Mode::RunEditor);
 }
 
-void Game::ProcessMouseDownEvent( const SDL_MouseButtonEvent& e )
+void Game::Quit()
 {
-	InputManager::ProcessMouseDownEvent(e);
+	m_RunGame = false;
 }
 
-void Game::ProcessMouseUpEvent( const SDL_MouseButtonEvent& e )
+void Game::ReturnToMainMenu()
 {
-	InputManager::ProcessMouseUpEvent(e);
+	if (m_pActiveLvl)
+	{
+		delete m_pActiveLvl;
+		m_pActiveLvl = nullptr;
+	}
+	if (m_pLevelEditor)
+	{
+		delete m_pLevelEditor;
+		m_pLevelEditor = nullptr;
+	}
+	GameData::SetMode(GameData::Mode::Menu);
+	m_MainMenu.MovingLMB();
 }
 
-void Game::ProcessMouseWheelEvent(int direction)
+void Game::CreateMainMenu()
 {
-	InputManager::ProcessMouseWheelEvent(direction);
+	std::function<void(void)> fPlay = std::bind(&Game::Play, this);
+	Button playButton("Play", Vector2f{ 100.f, 500.f }, 50.f, fPlay);
+	playButton.SetLogo("Play");
+	m_MainMenu.AddButton(std::move(playButton));
+
+	std::function<void(void)> fQuit = std::bind(&Game::Quit, this);
+	Button quitButton("Quit", Vector2f{ 100.f, 400.f }, 50.f, fQuit);
+	quitButton.SetLogo("Return");
+	m_MainMenu.AddButton(std::move(quitButton));
+}
+
+void Game::BindInputEvents()
+{
+	std::function<void(void)> fClickedLMB = std::bind(&UIPanel::LMBClicked, &m_MainMenu);
+	InputManager::RegisterCallback(InputManager::MouseEvent::ClickedLMB, fClickedLMB, GameData::Mode::Menu);
+
+	std::function<void(void)> fMovingLMB = std::bind(&UIPanel::MovingLMB, &m_MainMenu);
+	InputManager::RegisterCallback(InputManager::MouseEvent::MovingLMB, fMovingLMB, GameData::Mode::Menu);
+
+	std::function<void(void)> fPressedEscape = std::bind(&Game::ReturnToMainMenu, this);
+	InputManager::RegisterCallback(InputManager::Key::Escape, fPressedEscape, GameData::Mode::PlayLevel);
 }

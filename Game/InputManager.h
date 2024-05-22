@@ -2,94 +2,94 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <functional>
+#include "GameData.h"
 
 class InputManager final
 {
 public:
 	static InputManager& Get();
-	static void Init(SDL_GameController* SDLGameController);
 	static void Update();
 	static void Reset();
+	static bool HandleEvent(SDL_Event& e);
 
 	InputManager(const InputManager& other) = delete;
 	InputManager& operator=(const InputManager& other) = delete;
-
-	static void ProcessKeyDownEvent(const SDL_KeyboardEvent& e);
-	static void ProcessKeyUpEvent(const SDL_KeyboardEvent& e);
-	static void ProcessMouseMotionEvent(const SDL_MouseMotionEvent& e);
-	static void ProcessMouseDownEvent(const SDL_MouseButtonEvent& e);
-	static void ProcessMouseUpEvent(const SDL_MouseButtonEvent& e);
-	static void ProcessMouseWheelEvent(int direction);
-
-	enum class Event
-	{
-		ClickedLMB, ScrollingMMB, DraggingMMB, KeyPressed
-	};
-
-	enum class Key
-	{
-		Enter, Escape, E, F, G
-	};
+	InputManager(InputManager&& other) = delete;
+	InputManager& operator=(InputManager&& other) = delete;
 
 	struct MouseInfo
 	{
 		Vector2f pos;
-		bool pressedLMB;
-		bool pressingLMB;
-		bool pressedMMB;
-		bool pressingMMB;
-		bool draggingMMB;
 		Vector2f dragDist;
-		bool scrollingMMB;
 		int scrollDir;
 	};
 
 	struct ControllerInfo
 	{
 		Vector2i leftJoystickDir;
-		bool pressingButtonX;
-		bool pressingRightShoulder;
-		bool pressingRightTrigger;
 	};
 
-	typedef std::function<void()> Callback;
-	static void RegisterCallback(Event e, Callback callback);
+	enum class MouseEvent
+	{
+		None, ClickedLMB, MovingLMB, ClickedMMB, ScrollingMMB, DraggingMMB
+	};
 
+	enum class Key
+	{
+		None, Enter, Escape, E, F, Up, Down
+	};
+
+	enum class GameAction
+	{
+		None, Jump, Dash, Grab
+	};
+
+	struct CallbackInfo
+	{
+		std::function<void()> callback;
+		GameData::Mode mode;
+		MouseEvent mouseEvent;
+		Key key;
+		GameAction gameAction;
+	};
+
+	static void RegisterCallback(MouseEvent mouseEvent, std::function<void()> callback, GameData::Mode mode);
+	static void RegisterCallback(Key key, std::function<void()> callback, GameData::Mode mode);
+	static void RegisterCallback(GameAction gameAction, std::function<void()> callback, GameData::Mode mode);
+
+	static bool IsMouseEventTriggered(MouseEvent mouseEvent);
 	static bool IsKeyPressed(Key key);
+	static bool IsGameActionTriggered(GameAction gameAction);
 	static const MouseInfo& GetMouseInfo();
 	static const ControllerInfo& GetControllerInfo();
 private:
 	InputManager();
+	~InputManager();
 
 	//Internal implementation of public functions
 	void IUpdate();
 	void IReset();
-	void IProcessKeyDownEvent(const SDL_KeyboardEvent& e);
-	void IProcessKeyUpEvent(const SDL_KeyboardEvent& e);
-	void IProcessMouseMotionEvent(const SDL_MouseMotionEvent& e);
-	void IProcessMouseDownEvent(const SDL_MouseButtonEvent& e);
-	void IProcessMouseUpEvent(const SDL_MouseButtonEvent& e);
-	void IProcessMouseWheelEvent(int direction);
+	bool IHandleEvent(SDL_Event& e);
+
+	//SDL Event Functions
+	void ProcessKeyEvent(const SDL_KeyboardEvent& e, bool keyDown);
+	void ProcessMouseMotionEvent(const SDL_MouseMotionEvent& e);
+	void ProcessMouseButtonEvent(const SDL_MouseButtonEvent& e, bool buttonDown);
+	void ProcessMouseWheelEvent(int direction);
+	void ProcessControllerButtonEvent(const SDL_ControllerButtonEvent& e, bool buttonDown);
 
 	//Functions
-	void TriggerCallBacks(Event e);
+	void TriggerCallbacks();
+	SDL_GameController* FindController();
 
 	//Members
 	const Uint8* m_pKeyStates;
 	SDL_GameController* m_pSDLGameController;
+
 	MouseInfo m_MouseInfo;
 	ControllerInfo m_ControllerInfo;
+	std::unordered_set<MouseEvent> m_MouseEvents;
 	std::unordered_set<Key> m_PressedKeys;
-	std::unordered_map<Event, std::vector<Callback>> m_CallBacks;
+	std::unordered_set<GameAction> m_GameActions;
+	std::vector<CallbackInfo> m_Callbacks;
 };
-
-//enum class Mouse
-//{
-
-//};
-
-//enum class Controller
-//{
-//	LeftJoystick, X, RightShoulder, RightBumper
-//};
-

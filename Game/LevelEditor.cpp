@@ -15,23 +15,23 @@ LevelEditor::LevelEditor()
 	: m_DefaultMode{ Mode::ModeSelect }
     , m_Mode{}
     , m_SelectedMode{}
-    , m_MODE_NAMES{ std::vector<std::string>{"ModeSelect", "RunLevel", "CreateLevel", "EditLevel", "CreateLevelScreen", "EditLevelScreen"} }
+    , m_ModeNames{ std::vector<std::string>{"ModeSelect", "RunLevel", "CreateLevel", "EditLevel", "CreateLevelScreen", "EditLevelScreen"} }
     , m_pCamera{ new Camera() }
     , m_pCurLevel{ nullptr }
     , m_pCurLevelScreen{ nullptr }
 {
     //To-Do: wrap this in a function
     std::function<void(void)> fClickedLMB = std::bind(&LevelEditor::ClickedLMB, this);
-    InputManager::RegisterCallback(InputManager::Event::ClickedLMB, fClickedLMB);
+    InputManager::RegisterCallback(InputManager::MouseEvent::ClickedLMB, fClickedLMB, GameData::Mode::RunEditor);
 
     std::function<void(void)> fScrollingMMB = std::bind(&LevelEditor::ScrollingMMB, this);
-    InputManager::RegisterCallback(InputManager::Event::ScrollingMMB, fScrollingMMB);
-    
+    InputManager::RegisterCallback(InputManager::MouseEvent::ScrollingMMB, fScrollingMMB, GameData::Mode::RunEditor);
+
     std::function<void(void)> fDraggingMMB = std::bind(&LevelEditor::DraggingMMB, this);
-    InputManager::RegisterCallback(InputManager::Event::DraggingMMB, fDraggingMMB);
-    
+    InputManager::RegisterCallback(InputManager::MouseEvent::DraggingMMB, fDraggingMMB, GameData::Mode::RunEditor);
+
     std::function<void(void)> fKeyPressed = std::bind(&LevelEditor::KeyPressed, this);
-    InputManager::RegisterCallback(InputManager::Event::KeyPressed, fKeyPressed);
+    InputManager::RegisterCallback(InputManager::Key::None, fKeyPressed, GameData::Mode::RunEditor);
 
     SetDefaultMode();
 }
@@ -55,6 +55,10 @@ void LevelEditor::Draw() const
         m_pCamera->Aim(Rectf{ 0.f, 0.f, levelScreenDimensions.x, levelScreenDimensions.y });
         m_pCurLevelScreen->Draw();
         m_pCamera->Reset();
+        //Draw circle around mousePos
+        Vector2f mousePos{ InputManager::GetMouseInfo().pos };
+        utils::SetColor(Color4f{ 0.f, 1.f, 1.f, 1.f });
+        utils::DrawEllipse(mousePos.x, mousePos.y, 5.f, 5.f, 2.f);
         break;
     }
 }
@@ -64,7 +68,6 @@ void LevelEditor::Update(float dt)
     switch (m_Mode)
     {
     case Mode::EditLevelScreen:
-        EditLevelScreen();
         break;
     }
 }
@@ -78,6 +81,8 @@ void LevelEditor::KeyPressed()
             EnterSelectedMode();
         break;
     case Mode::EditLevelScreen:
+        if (InputManager::IsKeyPressed(InputManager::Key::E))
+            SelectLevelScreenToEdit();
         if (InputManager::IsKeyPressed(InputManager::Key::F))
             m_pCamera->Focus();
         break;
@@ -90,6 +95,15 @@ void LevelEditor::KeyPressed()
 
 void LevelEditor::ClickedLMB()
 {
+    switch (m_Mode)
+    {
+    case Mode::EditLevelScreen:
+        Vector2f mousePos{ InputManager::GetMouseInfo().pos };
+        Vector2f worldPos{ m_pCamera->GetWorldPos(mousePos) };
+        TileIdx tileIdx{ utils::GetTileIdxByPos(worldPos, GameData::TILE_SIZE_PIX()) };
+        std::cout << tileIdx.r << " " << tileIdx.c << std::endl;
+        break;
+    }
 }
 
 void LevelEditor::ScrollingMMB()
@@ -144,14 +158,14 @@ void LevelEditor::ScrollThroughModes()
     if (direction > 0)
     {
         ++modeIdx;
-        if (modeIdx > m_MODE_NAMES.size() - 1)
+        if (modeIdx > m_ModeNames.size() - 1)
             modeIdx = 1;
     }
     else if (direction < 0)
     {
         --modeIdx;
         if (modeIdx < 1)
-            modeIdx = m_MODE_NAMES.size() - 1;
+            modeIdx = int(m_ModeNames.size()) - 1;
     }
     SetSelectedMode(Mode(modeIdx));
 }
@@ -255,12 +269,6 @@ void LevelEditor::CreateLevelScreen()
     SetSelectedMode(Mode::EditLevelScreen, true);
 }
 
-void LevelEditor::EditLevelScreen()
-{
-    Vector2f mousePos{ InputManager::GetMouseInfo().pos };
-    Vector2f worldPos{ m_pCamera->GetWorldPos(mousePos) };
-}
-
 void LevelEditor::SelectLevelScreenToEdit()
 {
     PrintHeader("Selecting a level screen to edit");
@@ -287,7 +295,7 @@ void LevelEditor::SetSelectedMode(Mode mode, bool enter)
         EnterSelectedMode();
     else
     {
-        std::cout << "Selected Mode: " << m_MODE_NAMES[int(m_SelectedMode)] << ", ";
+        std::cout << "Selected Mode: " << m_ModeNames[int(m_SelectedMode)] << ", ";
         std::cout << "Press Enter to activate mode." << std::endl;
     }
 }
@@ -295,7 +303,7 @@ void LevelEditor::SetSelectedMode(Mode mode, bool enter)
 void LevelEditor::EnterSelectedMode()
 {
     m_Mode = m_SelectedMode;
-    std::cout << "Mode changed to: " << m_MODE_NAMES[int(m_Mode)] << std::endl;
+    std::cout << "Mode changed to: " << m_ModeNames[int(m_Mode)] << std::endl;
     switch (m_Mode)
     {
     case Mode::ModeSelect:

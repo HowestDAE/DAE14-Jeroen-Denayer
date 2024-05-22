@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 
-class Camera
+class Camera final
 {
 public:
 	Camera(const Vector2f& boundary = Vector2f{0.f, 0.f}, const Vector2f& zoom = Vector2f{1.f, 1.f});
@@ -21,16 +21,7 @@ private:
 	Vector2f m_BaseZoom;
 	Vector2f m_Zoom;
 	float m_MinZoom;
-	struct Transformation
-	{
-		enum class Type
-		{
-			T, R, S
-		};
-		Type type;
-		Vector2f value;
-	};
-	std::vector<Transformation> m_Transformations;
+
 	Vector2f m_ScreenCenter;
 	Vector2f m_Scaling;
 	Vector2f m_PosCenter;

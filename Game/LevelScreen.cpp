@@ -10,7 +10,8 @@
 #include "FileIO.h"
 
 LevelScreen::LevelScreen(const std::string& name, Level* pLevel)
-	: m_Name{ name }
+	: m_IsValid{ true }
+	, m_Name{ name }
 	, m_TileSize{ GameData::TILE_SIZE_PIX() }
 	, m_PixPerM{ GameData::PIX_PER_M() }
 	, m_pPhysicsBodies{ std::vector<PhysicsBody*>{} }
@@ -36,6 +37,7 @@ LevelScreen& LevelScreen::operator=(LevelScreen&& other) noexcept
 	if (this != &other)
 	{
 		//shallow copy
+		m_IsValid = std::move(other.m_IsValid);
 		m_Name = std::move(other.m_Name);
 		m_Rows = std::move(other.m_Rows);
 		m_Cols = std::move(other.m_Cols);
@@ -84,19 +86,19 @@ void LevelScreen::Draw() const
 				else //Draw pink rectangle, texture not properly loaded
 				{
 					utils::SetColor(Color4f{ 1.f, 0.f, 1.f, 1.f });
-					utils::FillRect(x, y, m_TileSize, m_TileSize);
+					utils::FillRect(x, y, float(m_TileSize), float(m_TileSize));
 				}
 			}
 			else //Draw black rectangle, ID specifically mapped to invalid texture
 			{
 				utils::SetColor(Color4f{ 0.f, 0.f, 0.f, 1.f });
-				utils::FillRect(x, y, m_TileSize, m_TileSize);
+				utils::FillRect(x, y, float(m_TileSize), float(m_TileSize));
 			}
 		}
 		else //Draw red rectangle, ID not mapped to textureID in m_IdToTextureIdx
 		{
 			utils::SetColor(Color4f{ 1.f, 0.f, 0.f, 1.f });
-			utils::FillRect(x, y, m_TileSize, m_TileSize);
+			utils::FillRect(x, y, float(m_TileSize), float(m_TileSize));
 		}
 	}
 
@@ -118,8 +120,10 @@ void LevelScreen::Draw() const
 		pPhysicsBody->Draw();
 }
 
-void LevelScreen::Update(float dt)
+bool LevelScreen::Update(float dt)
 {
+	bool levelActionRequired{ false };
+	m_pPhysicsBodiesOverlapinggates.clear();
 	for (std::vector<PhysicsBody*>::iterator it{m_pPhysicsBodies.begin()}; it != m_pPhysicsBodies.end();)
 	{
 		PhysicsBody* pPhysicsBody{ *it };
@@ -149,22 +153,30 @@ void LevelScreen::Update(float dt)
 		if (gateIdx >= 0 && gateIdx < m_Gates.size())
 		{
 			it = m_pPhysicsBodies.erase(it);
-			//Notify the level that a physicsBody was removed from this level via a certain gate,
-			//level should take care of moving the physicsBody to another levelScreen or delete it
-			bool movedToNewLevel{};
-			if (m_pLevel) //controlling level should take care of pPHysicsBody
-				movedToNewLevel = m_pLevel->TransferPhysicsBody(pPhysicsBody, m_Gates[gateIdx]);
-			else //no controlling level so remove pPhysicsBody
+			//This map needs to be handled by the level managing this levelScreen
+			//at the end of this Update(), the map is cleared at start of Update()
+			if (m_pLevel)
+			{
+				m_pPhysicsBodiesOverlapinggates.insert({ pPhysicsBody, m_Gates[gateIdx] });
+				levelActionRequired = true;
+			}
+			else //no managing level, so delete the physicsBody
 				delete pPhysicsBody;
-
-			if (movedToNewLevel) //The class instance was removed because the player moved to another level
-				return;
 		}
 		else
-		{
 			++it;
-		}
 	}
+	return levelActionRequired;
+}
+
+bool LevelScreen::IsValid() const
+{
+	return m_IsValid;
+}
+
+std::unordered_map<PhysicsBody*, LevelScreen::Gate&>& LevelScreen::GetPhysicsBodiesOverlapingGates()
+{
+	return m_pPhysicsBodiesOverlapinggates;
 }
 
 void LevelScreen::AddPhysicsBody(PhysicsBody* pPhysicsBody)
@@ -265,7 +277,10 @@ int LevelScreen::GetHeight() const
 void LevelScreen::LoadData()
 {
 	//Load texture into m_Data
-	FileIO::LoadTexture(m_Name, m_Data, m_Rows, m_Cols);
+	m_IsValid = FileIO::LoadTexture(m_Name, m_Data, m_Rows, m_Cols);
+	if (!m_IsValid)
+		return;
+
 	m_Width = float(m_Cols * m_TileSize);
 	m_Height = float(m_Rows * m_TileSize);
 

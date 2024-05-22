@@ -9,6 +9,13 @@ class Madeline final
 	:public PhysicsBody
 {
 public:
+	explicit Madeline(const Point2f& pos, float width, float height);
+	virtual ~Madeline() override;
+	Madeline(const Madeline& other) = delete;
+	Madeline& operator=(const Madeline& other) = delete;
+	Madeline(Madeline&& other) = delete;
+	Madeline& operator=(Madeline&& other) = delete;
+
 	enum class State
 	{
 		Idle, Running, Jumping, EndingJump, GroundJumping, WallJumping, WallHopping, WallNeutralJumping, Falling, Crouching, WallGrabbing, WallClimbing, WallSliding, Dashing
@@ -38,13 +45,6 @@ public:
 		MovementParameters* y;
 	};
 
-	explicit Madeline(const Point2f& pos, float width, float height);
-	virtual ~Madeline() override;
-	Madeline(const Madeline& other) = delete;
-	Madeline& operator=(const Madeline& other) = delete;
-	Madeline(Madeline&& other) = delete;
-	Madeline& operator=(Madeline&& other) = delete;
-
 	virtual void Draw() const override;
 	virtual void Update(float dt) override;
 	virtual void CollisionInfoResponse(int idx, const CollisionInfo& ci) override;
@@ -54,7 +54,7 @@ private:
 	void SetStateParameters(float dt);
 	void InitialiseState();
 	void UpdateState(float dt);
-	void ApplyMovementParameters(float& targetVel, float& vel, float& acc, MovementParameters& movementParameters, float inputDir);
+	void ApplyMovementParameters(float& targetVel, float& vel, float& acc, MovementParameters& movementParameters, int inputDir);
 
 	//Members
 	MultiSpriteSheet* m_pMultiSpriteSheet;

@@ -6,7 +6,7 @@
 #include "Texture.h"
 
 FileIO::FileIO()
-	: m_Dirs{ std::vector <std::string>{ "LevelsData/", "LevelScreensData/", "Textures/" } }
+	: m_Dirs{ std::vector <std::string>{ "LevelsData/", "LevelScreensData/", "Textures/", "Fonts/" }}
 {
 }
 
@@ -95,16 +95,21 @@ bool FileIO::LoadTexture(const std::string& name, std::vector<uint8_t>& data, in
 bool FileIO::LoadTexture(const std::string& name, Texture*& pTexture)
 {
 	bool succes{ false };
-	const std::string& dir{ FileIO::GetDir(FileIO::Dir::Texture) };
-	std::string texturePath{ dir + name + ".png" };
-	if (!std::filesystem::exists(texturePath))
+	std::stringstream path{};
+	path << FileIO::GetDir(FileIO::Dir::Texture) << name << ".png";
+	if (!std::filesystem::exists(path.str()))
 	{
-		std::cout << "FileIO::LoadTexture(): Couldn't find texture on disk: " << texturePath << std::endl;
+		std::cout << "FileIO::LoadTexture(): Couldn't find texture on disk: " << path.str() << std::endl;
 	}
 	else
 	{
-		pTexture = new Texture(texturePath);
-		succes = true;
+		if (pTexture)
+			std::cout << "FileIO::LoadTexture(): pTexture already points to something" << std::endl;
+		else
+		{
+			pTexture = new Texture(path.str());
+			succes = true;
+		}
 	}
 	return succes;
 }

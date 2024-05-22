@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <unordered_map>
 #include "Game.h"
 
 //Forward declarations
@@ -10,6 +11,13 @@ class Texture;
 class LevelScreen final
 {
 public:
+	explicit LevelScreen(const std::string& name, Level* pLevel = nullptr);
+	~LevelScreen();
+	LevelScreen(const LevelScreen& other) = delete;
+	LevelScreen& operator=(const LevelScreen& other) = delete;
+	LevelScreen(LevelScreen&& other) = delete;
+	LevelScreen& operator=(LevelScreen&& other) noexcept;
+
 	struct Gate
 	{
 		//Left/Right = even/horizontal, Top/Bottom = uneven/vertical
@@ -25,15 +33,10 @@ public:
 		int length;
 	};
 
-	explicit LevelScreen(const std::string& name, Level* pLevel = nullptr);
-	~LevelScreen();
-	LevelScreen(const LevelScreen& other) = delete;
-	LevelScreen& operator=(const LevelScreen& other) = delete;
-	LevelScreen(LevelScreen&& other) = delete;
-	LevelScreen& operator=(LevelScreen&& other) noexcept;
-
 	void Draw() const;
-	void Update(float dt);
+	bool Update(float dt);
+	bool IsValid() const;
+	std::unordered_map<PhysicsBody*, Gate&>& GetPhysicsBodiesOverlapingGates();
 
 	void AddPhysicsBody(PhysicsBody* pPhysicsBody);
 	void AddPhysicsBodyThroughGate(PhysicsBody* pPhysicsBody, const Gate& gate);
@@ -62,6 +65,7 @@ private:
 	int GetTileID(int row, int col) const;
 
 	//Members
+	bool m_IsValid;
 	std::string m_Name;
 	int m_Rows;
 	int m_Cols;
@@ -74,6 +78,7 @@ private:
 	std::vector<int> m_IdToTextureIdx;
 	std::vector<uint8_t> m_Data;
 	std::vector<PhysicsBody*> m_pPhysicsBodies;
+	std::unordered_map<PhysicsBody*, Gate&> m_pPhysicsBodiesOverlapinggates;
 	std::vector<Gate> m_Gates;
 };
 

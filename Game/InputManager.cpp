@@ -2,137 +2,20 @@
 #include "InputManager.h"
 
 InputManager::InputManager()
-	: m_pKeyStates{ nullptr }
-	, m_pSDLGameController{ nullptr }
+	: m_pKeyStates{ SDL_GetKeyboardState(nullptr) }
+	, m_pSDLGameController{ FindController() }
 	, m_MouseInfo{ MouseInfo{} }
 	, m_ControllerInfo{ ControllerInfo{} }
-	, m_CallBacks{ std::unordered_map<Event, std::vector<Callback>>{} }
+	, m_MouseEvents{ std::unordered_set<MouseEvent>{} }
+	, m_PressedKeys{ std::unordered_set<Key>{} }
+	, m_GameActions{ std::unordered_set<GameAction>{} }
+	, m_Callbacks{ std::vector<CallbackInfo>{} }
 {
 }
 
-void InputManager::IUpdate()
+InputManager::~InputManager()
 {
-	//Controller Input
-	float deadZoneX{ 0.4f };
-	Sint16 xAxisSint16{ SDL_GameControllerGetAxis(m_pSDLGameController, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTX) };
-	float xAxis{ float(xAxisSint16) / std::numeric_limits<Sint16>::max() };
-	if (xAxis < -deadZoneX) m_ControllerInfo.leftJoystickDir.x = -1.f;
-	else if (xAxis > deadZoneX) m_ControllerInfo.leftJoystickDir.x = 1.f;
-	else m_ControllerInfo.leftJoystickDir.x = 0.f;
-
-	float deadZoneY{ 0.8f };
-	Sint16 yAxisSint16{ SDL_GameControllerGetAxis(m_pSDLGameController, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTY) };
-	float yAxis{ float(yAxisSint16) / std::numeric_limits<Sint16>::max() };
-	if (yAxis < -deadZoneY) m_ControllerInfo.leftJoystickDir.y = 1.f;
-	else if (yAxis > deadZoneY) m_ControllerInfo.leftJoystickDir.y = -1.f;
-	else m_ControllerInfo.leftJoystickDir.y = 0.f;
-
-	m_ControllerInfo.pressingButtonX = SDL_GameControllerGetButton(m_pSDLGameController, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_A);
-
-	if (SDL_GameControllerGetAxis(m_pSDLGameController, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERRIGHT))
-	{
-		float deadZoneRightTrigger{ 0.5f };
-		Sint16 axisSint16{ SDL_GameControllerGetAxis(m_pSDLGameController, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERRIGHT) };
-		float axis{ float(axisSint16) / std::numeric_limits<Sint16>::max() };
-		m_ControllerInfo.pressingRightTrigger = std::abs(axis) > deadZoneRightTrigger;
-	}
-
-	m_ControllerInfo.pressingRightShoulder = SDL_GameControllerGetButton(m_pSDLGameController, SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_RIGHTSHOULDER);
-}
-
-void InputManager::IReset()
-{
-	m_MouseInfo.pressedLMB = false;
-	m_MouseInfo.scrollingMMB = false;
-	m_MouseInfo.pressedMMB = false;
-	m_MouseInfo.draggingMMB = false;
-
-	m_PressedKeys.clear();
-}
-
-void InputManager::IProcessKeyDownEvent(const SDL_KeyboardEvent& e)
-{
-	switch (e.keysym.sym)
-	{
-	case SDLK_RETURN:
-		m_PressedKeys.emplace(Key::Enter);
-		break;
-	case SDLK_ESCAPE:
-		m_PressedKeys.emplace(Key::Escape);
-		break;
-	case SDLK_e:
-		m_PressedKeys.emplace(Key::E);
-		break;
-	case SDLK_f:
-		m_PressedKeys.emplace(Key::F);
-		break;
-	}
-	if (!m_PressedKeys.empty())
-		TriggerCallBacks(Event::KeyPressed);
-}
-
-void InputManager::IProcessKeyUpEvent(const SDL_KeyboardEvent& e)
-{
-}
-
-void InputManager::IProcessMouseMotionEvent(const SDL_MouseMotionEvent& e)
-{
-	Point2f prevMousePos(m_MouseInfo.pos);
-	m_MouseInfo.pos.x = float(e.x);
-	m_MouseInfo.pos.y = float(e.y);
-	if (m_MouseInfo.pressingMMB)
-	{
-		m_MouseInfo.draggingMMB = true;
-		m_MouseInfo.dragDist.x = m_MouseInfo.pos.x - prevMousePos.x;
-		m_MouseInfo.dragDist.y = m_MouseInfo.pos.y - prevMousePos.y;
-		TriggerCallBacks(Event::DraggingMMB);
-	}
-}
-
-void InputManager::IProcessMouseDownEvent(const SDL_MouseButtonEvent& e)
-{
-	switch (e.button)
-	{
-	case SDL_BUTTON_LEFT:
-		m_MouseInfo.pressedLMB = true;
-		m_MouseInfo.pressingLMB = true;
-		TriggerCallBacks(Event::ClickedLMB);
-		break;
-	case SDL_BUTTON_MIDDLE:
-		m_MouseInfo.pressedMMB = true;
-		m_MouseInfo.pressingMMB = true;
-		break;
-	}
-}
-
-void InputManager::IProcessMouseUpEvent(const SDL_MouseButtonEvent& e)
-{
-	switch (e.button)
-	{
-	case SDL_BUTTON_LEFT:
-		m_MouseInfo.pressingLMB = false;
-		break;
-	case SDL_BUTTON_MIDDLE:
-		m_MouseInfo.pressingMMB = false;
-		break;
-	}
-}
-
-void InputManager::IProcessMouseWheelEvent(int direction)
-{
-	m_MouseInfo.scrollingMMB = true;
-	m_MouseInfo.scrollDir = direction;
-	TriggerCallBacks(Event::ScrollingMMB);
-}
-
-void InputManager::TriggerCallBacks(Event e)
-{
-	auto it = m_CallBacks.find(e);
-	if (it != m_CallBacks.end())
-	{
-		for (Callback callback : m_CallBacks[e])
-			callback();
-	}
+	SDL_GameControllerClose(m_pSDLGameController);
 }
 
 InputManager& InputManager::Get()
@@ -141,70 +24,309 @@ InputManager& InputManager::Get()
 	return instance;
 }
 
-void InputManager::Init(SDL_GameController* SDLGameController)
+void InputManager::Update() { Get().IUpdate(); }
+
+void InputManager::Reset() { Get().IReset(); }
+
+bool InputManager::HandleEvent(SDL_Event& e) { return Get().IHandleEvent(e); }
+
+void InputManager::RegisterCallback(MouseEvent mouseEvent, std::function<void()> callback, GameData::Mode mode)
 {
-	InputManager& im{ Get() };
-	im.m_pKeyStates = SDL_GetKeyboardState(nullptr);
-	im.m_pSDLGameController = SDLGameController;
+	Get().m_Callbacks.push_back(CallbackInfo{ callback, mode, mouseEvent, Key::None, GameAction::None });
 }
 
-void InputManager::ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
+void InputManager::RegisterCallback(Key key, std::function<void()> callback, GameData::Mode mode)
 {
-	Get().IProcessKeyDownEvent(e);
+	Get().m_Callbacks.push_back(CallbackInfo{ callback, mode, MouseEvent::None, key, GameAction::None });
 }
 
-void InputManager::ProcessKeyUpEvent(const SDL_KeyboardEvent& e)
+void InputManager::RegisterCallback(GameAction gameAction, std::function<void()> callback, GameData::Mode mode)
 {
-	Get().IProcessKeyUpEvent(e);
+	Get().m_Callbacks.push_back(CallbackInfo{ callback, mode, MouseEvent::None, Key::None, gameAction });
 }
 
-void InputManager::ProcessMouseMotionEvent(const SDL_MouseMotionEvent& e)
+bool InputManager::IsMouseEventTriggered(MouseEvent mouseEvent)
 {
-	Get().IProcessMouseMotionEvent(e);
-}
-
-void InputManager::ProcessMouseDownEvent(const SDL_MouseButtonEvent& e)
-{
-	Get().IProcessMouseDownEvent(e);
-}
-
-void InputManager::ProcessMouseUpEvent(const SDL_MouseButtonEvent& e)
-{
-	Get().IProcessMouseUpEvent(e);
-}
-
-void InputManager::ProcessMouseWheelEvent(int direction)
-{
-	Get().IProcessMouseWheelEvent(direction);
-}
-
-void InputManager::Update()
-{
-	Get().IUpdate();
-}
-
-void InputManager::Reset()
-{
-	Get().IReset();
-}
-
-void InputManager::RegisterCallback(Event e, Callback callback)
-{
-	Get().m_CallBacks[e].push_back(callback);
+	return Get().m_MouseEvents.find(mouseEvent) != Get().m_MouseEvents.end();
 }
 
 bool InputManager::IsKeyPressed(Key key)
 {
-	const InputManager& am{ Get() };
-	return am.m_PressedKeys.find(key) != am.m_PressedKeys.end();
+	return Get().m_PressedKeys.find(key) != Get().m_PressedKeys.end();
 }
 
-const InputManager::MouseInfo& InputManager::GetMouseInfo()
+bool InputManager::IsGameActionTriggered(GameAction gameAction)
 {
-	return Get().m_MouseInfo;
+	return Get().m_GameActions.find(gameAction) != Get().m_GameActions.end();
 }
 
-const InputManager::ControllerInfo& InputManager::GetControllerInfo()
+const InputManager::MouseInfo& InputManager::GetMouseInfo() { return Get().m_MouseInfo; }
+
+const InputManager::ControllerInfo& InputManager::GetControllerInfo() { return Get().m_ControllerInfo; }
+
+void InputManager::IUpdate()
 {
-	return Get().m_ControllerInfo;
+	//Controller Input
+	if (m_pKeyStates[SDL_SCANCODE_LEFT])
+		m_ControllerInfo.leftJoystickDir.x -= 1;
+	else if (m_pKeyStates[SDL_SCANCODE_RIGHT])
+		m_ControllerInfo.leftJoystickDir.x += 1;
+	else
+	{
+		float deadZoneX{ 0.4f };
+		Sint16 xAxisSint16{ SDL_GameControllerGetAxis(m_pSDLGameController, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTX) };
+		float xAxis{ float(xAxisSint16) / std::numeric_limits<Sint16>::max() };
+		if (xAxis < -deadZoneX) m_ControllerInfo.leftJoystickDir.x = -1;
+		else if (xAxis > deadZoneX) m_ControllerInfo.leftJoystickDir.x = 1;
+		else m_ControllerInfo.leftJoystickDir.x = 0;
+	}
+
+	if (m_pKeyStates[SDL_SCANCODE_DOWN])
+	{
+		m_ControllerInfo.leftJoystickDir.y -= 1;
+		m_PressedKeys.emplace(Key::Down);
+	}
+	else if (m_pKeyStates[SDL_SCANCODE_UP])
+	{
+		m_ControllerInfo.leftJoystickDir.y += 1;
+		m_PressedKeys.emplace(Key::Down);
+	}
+	else
+	{
+		float deadZoneY{ 0.8f };
+		Sint16 yAxisSint16{ SDL_GameControllerGetAxis(m_pSDLGameController, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_LEFTY) };
+		float yAxis{ float(yAxisSint16) / std::numeric_limits<Sint16>::max() };
+		if (yAxis < -deadZoneY) m_ControllerInfo.leftJoystickDir.y = 1;
+		else if (yAxis > deadZoneY) m_ControllerInfo.leftJoystickDir.y = -1;
+		else m_ControllerInfo.leftJoystickDir.y = 0;
+	}
+
+	if (SDL_GameControllerGetAxis(m_pSDLGameController, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERRIGHT))
+	{
+		float deadZoneRightTrigger{ 0.5f };
+		Sint16 axisSint16{ SDL_GameControllerGetAxis(m_pSDLGameController, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERRIGHT) };
+		float axis{ float(axisSint16) / std::numeric_limits<Sint16>::max() };
+		if (std::abs(axis) > deadZoneRightTrigger)
+			m_GameActions.emplace(GameAction::Grab);
+		else
+			m_GameActions.erase(GameAction::Grab);
+	}
+
+	TriggerCallbacks();
+}
+
+void InputManager::IReset()
+{
+	m_ControllerInfo.leftJoystickDir.x = 0;
+	m_ControllerInfo.leftJoystickDir.y = 0;
+
+	m_MouseInfo.dragDist = Vector2f{};
+	m_MouseInfo.scrollDir = 0;
+
+	m_MouseEvents.erase(MouseEvent::MovingLMB);
+	m_MouseEvents.erase(MouseEvent::ScrollingMMB);
+	m_MouseEvents.erase(MouseEvent::DraggingMMB);
+}
+
+bool InputManager::IHandleEvent(SDL_Event& e)
+{
+	bool handleEvents{ true };
+	switch (e.type)
+	{
+	case SDL_QUIT:
+		handleEvents = false;
+		break;
+	case SDL_KEYDOWN:
+		ProcessKeyEvent(e.key, true);
+		break;
+	case SDL_KEYUP:
+		ProcessKeyEvent(e.key, false);
+		break;
+	case SDL_MOUSEMOTION:
+		e.motion.y = int(GameData::VIEWPORT().height) - e.motion.y;
+		ProcessMouseMotionEvent(e.motion);
+		break;
+	case SDL_MOUSEBUTTONDOWN:
+		e.button.y = int(GameData::VIEWPORT().height) - e.button.y;
+		ProcessMouseButtonEvent(e.button, true);
+		break;
+	case SDL_MOUSEBUTTONUP:
+		e.button.y = int(GameData::VIEWPORT().height) - e.button.y;
+		ProcessMouseButtonEvent(e.button, false);
+		break;
+	case SDL_MOUSEWHEEL:
+		ProcessMouseWheelEvent(e.wheel.y);
+		break;
+	case SDL_CONTROLLERBUTTONDOWN:
+		ProcessControllerButtonEvent(e.cbutton, true);
+		break;
+	case SDL_CONTROLLERBUTTONUP:
+		ProcessControllerButtonEvent(e.cbutton, false);
+		break;
+	case SDL_CONTROLLERDEVICEADDED:
+		if (!m_pSDLGameController)
+		{
+			//m_SDLGameController = SDL_GameControllerOpen(e.cdevice.which);
+			m_pSDLGameController = FindController();
+		}
+		break;
+	case SDL_CONTROLLERDEVICEREMOVED:
+		if (m_pSDLGameController && e.cdevice.which == SDL_JoystickInstanceID(
+			SDL_GameControllerGetJoystick(m_pSDLGameController)))
+		{
+			std::cout << "Disconnected Game Controller" << std::endl;
+			SDL_GameControllerClose(m_pSDLGameController);
+			m_pSDLGameController = FindController();
+		}
+		break;
+	}
+	return handleEvents;
+}
+
+void InputManager::ProcessKeyEvent(const SDL_KeyboardEvent& e, bool keyDown)
+{
+	switch (e.keysym.sym)
+	{
+	case SDLK_RETURN:
+		if (keyDown)
+			m_PressedKeys.emplace(Key::Enter);
+		else
+			m_PressedKeys.erase(Key::Enter);
+		break;
+	case SDLK_ESCAPE:
+		if (keyDown)
+			m_PressedKeys.emplace(Key::Escape);
+		else
+			m_PressedKeys.erase(Key::Escape);
+		break;
+	case SDLK_SPACE: case SDLK_UP:
+		if (keyDown)
+			m_GameActions.emplace(GameAction::Jump);
+		else
+			m_GameActions.erase(GameAction::Jump);
+		break;
+	case SDLK_g:
+		if (keyDown)
+			m_GameActions.emplace(GameAction::Grab);
+		else
+			m_GameActions.erase(GameAction::Grab);
+		break;
+	case SDLK_d:
+		if (keyDown)
+			m_GameActions.emplace(GameAction::Dash);
+		else
+			m_GameActions.erase(GameAction::Dash);
+		break;
+	case SDLK_e:
+		if (keyDown)
+			m_PressedKeys.emplace(Key::E);
+		else
+			m_PressedKeys.erase(Key::E);
+		break;
+	case SDLK_f:
+		if (keyDown)
+			m_PressedKeys.emplace(Key::F);
+		else
+			m_PressedKeys.erase(Key::F);
+		break;
+	}
+}
+
+void InputManager::ProcessMouseMotionEvent(const SDL_MouseMotionEvent& e)
+{
+	Point2f prevMousePos(m_MouseInfo.pos);
+	m_MouseInfo.pos.x = float(e.x);
+	m_MouseInfo.pos.y = float(e.y);
+	m_MouseEvents.emplace(MouseEvent::MovingLMB);
+	if (IsMouseEventTriggered(MouseEvent::ClickedMMB))
+	{
+		m_MouseInfo.dragDist.x = m_MouseInfo.pos.x - prevMousePos.x;
+		m_MouseInfo.dragDist.y = m_MouseInfo.pos.y - prevMousePos.y;
+		m_MouseEvents.emplace(MouseEvent::DraggingMMB);
+	}
+}
+
+void InputManager::ProcessMouseButtonEvent(const SDL_MouseButtonEvent& e, bool buttonDown)
+{
+	switch (e.button)
+	{
+	case SDL_BUTTON_LEFT:
+		if (buttonDown)
+			m_MouseEvents.emplace(MouseEvent::ClickedLMB);
+		else
+			m_MouseEvents.erase(MouseEvent::ClickedLMB);
+		break;
+	case SDL_BUTTON_MIDDLE:
+		if (buttonDown)
+			m_MouseEvents.emplace(MouseEvent::ClickedMMB);
+		else
+			m_MouseEvents.erase(MouseEvent::ClickedMMB);
+		break;
+	}
+}
+
+void InputManager::ProcessMouseWheelEvent(int direction)
+{
+	m_MouseInfo.scrollDir = direction;
+	m_MouseEvents.emplace(MouseEvent::ScrollingMMB);
+}
+
+void InputManager::ProcessControllerButtonEvent(const SDL_ControllerButtonEvent& e, bool buttonDown)
+{
+	switch (e.button)
+	{
+	case SDL_CONTROLLER_BUTTON_START:
+		if (buttonDown)
+			m_PressedKeys.emplace(Key::Escape);
+		else
+			m_PressedKeys.erase(Key::Escape);
+		break;
+	case SDL_CONTROLLER_BUTTON_A:
+		if (buttonDown)
+		{
+			m_GameActions.emplace(GameAction::Jump);
+			m_PressedKeys.emplace(Key::Enter);
+		}
+		else
+		{
+			m_GameActions.erase(GameAction::Jump);
+			m_PressedKeys.erase(Key::Enter);
+		}
+		break;
+	case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
+		if (buttonDown)
+			m_GameActions.emplace(GameAction::Dash);
+		else
+			m_GameActions.erase(GameAction::Dash);
+		break;
+	case SDL_CONTROLLER_BUTTON_B:
+		if (buttonDown)
+			m_PressedKeys.emplace(Key::Escape);
+		else
+			m_PressedKeys.erase(Key::Escape);
+		break;
+	}
+}
+
+void InputManager::TriggerCallbacks()
+{
+	for (CallbackInfo& info : m_Callbacks)
+	{
+		if (info.mode == GameData::GetMode() &&
+			(info.mouseEvent == MouseEvent::None || IsMouseEventTriggered(info.mouseEvent)) &&
+			(info.key == Key::None || IsKeyPressed(info.key)) && 
+			(info.gameAction == GameAction::None || IsGameActionTriggered(info.gameAction)) )
+			info.callback();
+	}
+}
+
+SDL_GameController* InputManager::FindController()
+{
+	for (int i = 0; i < SDL_NumJoysticks(); i++) {
+		if (SDL_IsGameController(i)) {
+			std::cout << "Found Game Controller" << std::endl;
+			return SDL_GameControllerOpen(i);
+		}
+	}
+	return nullptr;
 }

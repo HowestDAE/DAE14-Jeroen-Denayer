@@ -1,6 +1,7 @@
 #pragma once
 #include "BaseGame.h"
 #include <vector>
+#include "UIPanel.h"
 
 //Forward declarations
 class LevelEditor;
@@ -17,23 +18,22 @@ public:
 	// http://isocpp.github.io/CppCoreGuidelines/CppCoreGuidelines#Rh-override
 	~Game();
 
-	void Update( float elapsedSec ) override;
-	void Draw( ) const override;
-
-	// Event handling
-	void ProcessKeyDownEvent( const SDL_KeyboardEvent& e ) override;
-	void ProcessKeyUpEvent( const SDL_KeyboardEvent& e ) override;
-	void ProcessMouseMotionEvent( const SDL_MouseMotionEvent& e ) override;
-	void ProcessMouseDownEvent( const SDL_MouseButtonEvent& e ) override;
-	void ProcessMouseUpEvent( const SDL_MouseButtonEvent& e ) override;
-	void ProcessMouseWheelEvent(int direction) override;
+	virtual bool Update( float elapsedSec ) override;
+	virtual void Draw( ) const override;
+	virtual bool HandleEvent(SDL_Event& e) const override;
 private:
+	//Functions
+	void Play();
+	void RunEditor();
+	void Quit();
+	void ReturnToMainMenu();
+
+	void CreateMainMenu();
+	void BindInputEvents();
+
 	//Members
-	enum class Mode
-	{
-		PlayLevel, RunEditor
-	};
-	Mode m_Mode;
+	bool m_RunGame;
+	UIPanel m_MainMenu;
 	LevelEditor* m_pLevelEditor;
 	Level* m_pActiveLvl;
 };

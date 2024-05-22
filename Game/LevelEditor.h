@@ -11,6 +11,10 @@ class LevelEditor final
 public:
 	LevelEditor();
 	~LevelEditor();
+	LevelEditor(const LevelEditor& other) = delete;
+	LevelEditor& operator=(const LevelEditor& other) = delete;
+	LevelEditor(LevelEditor&& other) = delete;
+	LevelEditor& operator=(LevelEditor&& other) = delete;
 
 	void Draw() const;
 	void Update(float dt);
@@ -18,11 +22,6 @@ private:
 	enum class Mode
 	{
 		ModeSelect, RunLevel, CreateLevel, EditLevel, CreateLevelScreen, EditLevelScreen
-	};
-
-	enum class EditLevelScreenModes
-	{
-		None, Gate
 	};
 
 	//Callback functions
@@ -38,7 +37,6 @@ private:
 	void CreateLevel();
 	//void EditLevel();
 	void CreateLevelScreen();
-	void EditLevelScreen();
 	void SelectLevelScreenToEdit();
 
 	void SetSelectedMode(Mode mode, bool enter = false);
@@ -53,7 +51,7 @@ private:
 	Mode m_DefaultMode;
 	Mode m_Mode;
 	Mode m_SelectedMode;
-	std::vector<std::string> m_MODE_NAMES;
+	std::vector<std::string> m_ModeNames;
 
 	Camera* m_pCamera;
 	Level* m_pCurLevel;

@@ -43,5 +43,3 @@ void DumpMemoryLeaks()
 	bool leak = _CrtDumpMemoryLeaks();
 #endif
 }
-
-

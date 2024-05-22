@@ -16,49 +16,16 @@ public:
 
 	void Run( );
 
-	virtual void Update(float elapsedSec)
-	{
-		
-	}
-	virtual void Draw() const
-	{
-		
-	}
+	virtual bool Update(float elapsedSec) = 0;
 
-	// Event handling
-	virtual void ProcessKeyDownEvent(const SDL_KeyboardEvent& e)
-	{
-		
-	}
-	virtual void ProcessKeyUpEvent(const SDL_KeyboardEvent& e)
-	{
-		
-	}
-	virtual void ProcessMouseMotionEvent(const SDL_MouseMotionEvent& e)
-	{
-		
-	}
-	virtual void ProcessMouseDownEvent(const SDL_MouseButtonEvent& e)
-	{
-		
-	}
-	virtual void ProcessMouseUpEvent(const SDL_MouseButtonEvent& e)
-	{
-		
-	}
+	virtual void Draw() const = 0;
 
-	virtual void ProcessMouseWheelEvent(int direction)
-	{
-
-	}
+	virtual bool HandleEvent(SDL_Event& e) const = 0;
 
 	const Rectf& GetViewPort() const
 	{
 		return m_Viewport;
 	}
-protected:
-	// SDL controller
-	SDL_GameController* m_SDLGameController;
 private:
 	// DATA MEMBERS
 	// The window properties
@@ -76,5 +43,4 @@ private:
 	// FUNCTIONS
 	void InitializeGameEngine( );
 	void CleanupGameEngine( );
-	SDL_GameController* FindController();
 };

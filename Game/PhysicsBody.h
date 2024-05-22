@@ -11,7 +11,7 @@ public:
 	PhysicsBody& operator=(const PhysicsBody& other) = delete;
 	PhysicsBody(PhysicsBody&& other) = delete;
 	PhysicsBody& operator=(PhysicsBody&& other) = delete;
-	
+
 	virtual void Draw() const = 0;
 	virtual void Update(float dt) = 0;
 
@@ -30,7 +30,7 @@ protected:
 private:
 	void UpdateAxis(float dt, float& targetVel, float& vel, float& acc);
 
-	friend void LevelScreen::Update(float dt);
-	friend 	void LevelScreen::AddPhysicsBodyThroughGate(PhysicsBody* pPhysicsBody, const Gate& gate);
+	friend bool LevelScreen::Update(float dt);
+	friend void LevelScreen::AddPhysicsBodyThroughGate(PhysicsBody* pPhysicsBody, const Gate& gate);
 };
 

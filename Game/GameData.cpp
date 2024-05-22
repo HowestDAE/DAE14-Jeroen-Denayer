@@ -22,9 +22,10 @@ GameData& GameData::Get()
 	return instance;
 }
 
-void GameData::Init(const Rectf& viewport)
+void GameData::Init(const Rectf& viewport, Mode mode)
 {
 	GameData& gameData{ Get() };
+	gameData.m_Mode					= mode;
 	gameData.m_Viewport				= viewport;
 	gameData.m_TILE_SIZE_PIX		= 8;
 	gameData.m_WINDOW_NUM_TILES_X	= 40.f;
@@ -38,10 +39,14 @@ void GameData::Init(const Rectf& viewport)
 	gameData.m_PIX_PER_M			= gameData.m_TILE_SIZE_PIX;
 }
 
-Rectf GameData::VIEWPORT()
+void GameData::SetMode(Mode mode)
 {
-	return Get().m_Viewport;
+	Get().m_Mode = mode;
 }
+
+GameData::Mode GameData::GetMode() { return Get().m_Mode; }
+
+Rectf GameData::VIEWPORT() { return Get().m_Viewport; }
 
 int GameData::TILE_SIZE_PIX() { return Get().m_TILE_SIZE_PIX; }
 

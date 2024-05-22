@@ -11,10 +11,12 @@ public:
 	static FileIO& Get();
 	FileIO(const FileIO& other) = delete;
 	FileIO& operator=(const FileIO& other) = delete;
+	FileIO(FileIO&& other) = delete;
+	FileIO& operator=(FileIO&& other) = delete;
 
 	enum class Dir
 	{
-		LevelData, LevelScreenData, Texture
+		LevelData, LevelScreenData, Texture, Font
 	};
 
 	static std::string GetDir(Dir dir);

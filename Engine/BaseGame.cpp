@@ -120,9 +120,6 @@ void BaseGame::InitializeGameEngine()
 		std::cerr << "BaseGame::Initialize( ), error when calling Mix_OpenAudio: " << Mix_GetError() << std::endl;
 		return;
 	}
-	
-	//Find SDL_GameController
-	m_SDLGameController = FindController();
 
 	m_Initialized = true;
 }
@@ -149,49 +146,7 @@ void BaseGame::Run()
 		// Poll next event from queue
 		while (SDL_PollEvent(&e) != 0)
 		{
-			// Handle the polled event
-			switch (e.type)
-			{
-			case SDL_QUIT:
-				quit = true;
-				break;
-			case SDL_KEYDOWN:
-				this->ProcessKeyDownEvent(e.key);
-				break;
-			case SDL_KEYUP:
-				this->ProcessKeyUpEvent(e.key);
-				break;
-			case SDL_MOUSEMOTION:
-				e.motion.y = int(m_Window.height) - e.motion.y;
-				this->ProcessMouseMotionEvent(e.motion);
-				break;
-			case SDL_MOUSEBUTTONDOWN:
-				e.button.y = int(m_Window.height) - e.button.y;
-				this->ProcessMouseDownEvent(e.button);
-				break;
-			case SDL_MOUSEBUTTONUP:
-				e.button.y = int(m_Window.height) - e.button.y;
-				this->ProcessMouseUpEvent(e.button);
-				break;
-			case SDL_CONTROLLERDEVICEADDED:
-				if (!m_SDLGameController) {
-					//m_SDLGameController = SDL_GameControllerOpen(e.cdevice.which);
-					m_SDLGameController = FindController();
-				}
-				break;
-			case SDL_MOUSEWHEEL:
-				this->ProcessMouseWheelEvent(e.wheel.y);
-				break;
-			case SDL_CONTROLLERDEVICEREMOVED:
-				if (m_SDLGameController && e.cdevice.which == SDL_JoystickInstanceID(
-					SDL_GameControllerGetJoystick(m_SDLGameController)))
-				{
-					std::cout << "Disconnected Game Controller" << std::endl;
-					SDL_GameControllerClose(m_SDLGameController);
-					m_SDLGameController = FindController();
-				}
-				break;
-			}
+			quit = !HandleEvent(e);
 		}
 
 		if (!quit)
@@ -209,7 +164,7 @@ void BaseGame::Run()
 			elapsedSeconds = std::min(elapsedSeconds, m_MaxElapsedSeconds);
 
 			// Call the BaseGame object 's Update function, using time in seconds (!)
-			this->Update(elapsedSeconds);
+			quit = !this->Update(elapsedSeconds);
 
 			// Draw in the back buffer
 			this->Draw();
@@ -239,14 +194,4 @@ void BaseGame::CleanupGameEngine()
 	EnableMenuItem(hmenu, SC_CLOSE, MF_ENABLED);
 #endif
 
-}
-
-SDL_GameController* BaseGame::FindController() {
-	for (int i = 0; i < SDL_NumJoysticks(); i++) {
-		if (SDL_IsGameController(i)) {
-			std::cout << "Found Game Controller" << std::endl;
-			return SDL_GameControllerOpen(i);
-		}
-	}
-	return nullptr;
 }

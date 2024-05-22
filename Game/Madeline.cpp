@@ -136,6 +136,7 @@ void Madeline::Draw() const
 	};
 	m_pMultiSpriteSheet->Draw(dstRect);
 
+	//Draw collision boxes
 	const Rectf& wallRect{ m_OverlapRects[0] };
 	utils::SetColor(Color4f{ 1.f, 0.f, 0.f, 1.f });
 	utils::DrawRect(m_Bounds);
@@ -181,19 +182,19 @@ void Madeline::CollisionInfoResponse(int idx, const CollisionInfo& ci)
 void Madeline::SetState()
 {
 	Vector2i inputDir{ InputManager::GetControllerInfo().leftJoystickDir };
-	if (m_CanDash && InputManager::GetControllerInfo().pressingRightShoulder)
+	if (m_CanDash && InputManager::IsGameActionTriggered(InputManager::GameAction::Dash))
 	{
-			m_CanDash = false;
-			m_Dashing = true;
-			m_State = State::Dashing;
+		m_CanDash = false;
+		m_Dashing = true;
+		m_State = State::Dashing;
 	}
 	else if (m_Dashing) //continue dash
 		return; 
-	else if (m_CanJump && InputManager::GetControllerInfo().pressingButtonX) //Start a specific jump
+	else if (m_CanJump && InputManager::IsGameActionTriggered(InputManager::GameAction::Jump)) //Start a specific jump
 	{
 		m_Jumping = true;
 		m_CanJump = false;
-		if (m_DistFromWall == 0.f && InputManager::GetControllerInfo().pressingRightTrigger) //Grabbing a wall
+		if (m_DistFromWall == 0.f && InputManager::IsGameActionTriggered(InputManager::GameAction::Grab)) //Grabbing a wall
 			m_State = State::WallHopping;
 		else if (m_OnGround) //Normal ground jump
 			m_State = State::GroundJumping;
@@ -204,7 +205,7 @@ void Madeline::SetState()
 	}
 	else if (m_Jumping)
 	{
-		if (InputManager::GetControllerInfo().pressingButtonX)
+		if (InputManager::IsGameActionTriggered(InputManager::GameAction::Jump))
 			if ((m_State == State::WallJumping ||
 				m_State == State::WallNeutralJumping ||
 				m_State == State::WallHopping) &&
@@ -239,7 +240,7 @@ void Madeline::SetStateParameters(float dt)
 {
 	float epsilon(0.5f); //in pixels
 	//Against the wall and grabbing
-	m_Grabbing = m_DistFromWall < epsilon && InputManager::GetControllerInfo().pressingRightTrigger;
+	m_Grabbing = m_DistFromWall < epsilon && InputManager::IsGameActionTriggered(InputManager::GameAction::Grab);
 
 	if (!m_OnGround && !m_Grabbing)
 		m_AirTime += dt;
@@ -248,11 +249,11 @@ void Madeline::SetStateParameters(float dt)
 
 	//Can jump and not on ground or against wall or airTime > ledgeJumpTime will set m_CanJump = false or,
 	//Can't jump or no jump input but on ground or against wall will set m_CanJump = true
-	m_CanJump = (m_CanJump || !InputManager::GetControllerInfo().pressingButtonX) && (m_OnGround || m_AgainstWall) || (m_CanJump && m_AirTime <= m_LedgeJumpTime);
+	m_CanJump = (m_CanJump || !InputManager::IsGameActionTriggered(InputManager::GameAction::Jump)) && (m_OnGround || m_AgainstWall) || (m_CanJump && m_AirTime <= m_LedgeJumpTime);
 	//m_Jumping will go from true to false if m_Jumping is true and vel <= 0 or m_OnGround
 	m_Jumping &= (m_Vel.y > 0.f && !m_OnGround);
 	//m_CanDash will go from false to true if no dash input and m_OnGround
-	m_CanDash |= (!InputManager::GetControllerInfo().pressingRightShoulder && m_OnGround);
+	m_CanDash |= (!InputManager::IsGameActionTriggered(InputManager::GameAction::Dash) && m_OnGround);
 	//m_Dashing will go from true to false if vel x and y have reached the maxSpeed
 	m_Dashing &= !(m_Vel.x == m_pStateInfo->x->maxSpeed && m_Vel.y == m_pStateInfo->y->maxSpeed);
 }
@@ -301,7 +302,7 @@ void Madeline::UpdateState(float dt)
 	m_pMultiSpriteSheet->Update(dt);
 }
 
-void Madeline::ApplyMovementParameters(float& targetVel, float& vel, float& acc, MovementParameters& movementParameters, float inputDir)
+void Madeline::ApplyMovementParameters(float& targetVel, float& vel, float& acc, MovementParameters& movementParameters, int inputDir)
 {
 	targetVel = movementParameters.maxSpeed;
 	acc = movementParameters.acc;

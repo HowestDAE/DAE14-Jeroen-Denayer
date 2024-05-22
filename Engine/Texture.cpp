@@ -19,6 +19,7 @@ Texture::Texture( const std::string& text, TTF_Font *pFont, const Color4f& textC
 	,m_Width{ 10.0f }
 	,m_Height{ 10.0f }
 	,m_CreationOk{ false }
+	,m_FlipInX{ false }
 {
 	CreateFromString( text, pFont, textColor );
 }
@@ -28,6 +29,7 @@ Texture::Texture( const std::string& text, const std::string& fontPath, int ptSi
 	,m_Width{ 10.0f }
 	,m_Height{ 10.0f }
 	,m_CreationOk{ false }
+	,m_FlipInX{ false }
 {
 	CreateFromString( text, fontPath, ptSize, textColor );
 }
@@ -36,6 +38,7 @@ Texture::Texture( Texture&& other ) noexcept
 	,m_Width{ other.m_Width }
 	,m_Height{ other.m_Height }
 	,m_CreationOk{ other.m_CreationOk }
+	,m_FlipInX{ other.m_FlipInX }
 {
 	other.m_Id = 0;
 	other.m_CreationOk = false;
@@ -50,6 +53,7 @@ Texture& Texture::operator=( Texture&& other ) noexcept
 		m_Width = other.m_Width;
 		m_Height = other.m_Height;
 		m_CreationOk = other.m_CreationOk;
+		m_FlipInX = other.m_FlipInX;
 		other.m_Id = 0;
 		other.m_CreationOk = false;
 	}

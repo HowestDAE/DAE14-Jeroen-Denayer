@@ -4,16 +4,24 @@
 class Level;
 
 //Singleton
-class GameData
+class GameData final
 {
 public:
-	GameData(const GameData&) = delete;
-	void operator=(const GameData&) = delete;
+	enum class Mode
+	{
+		Menu, PlayLevel, RunEditor
+	};
 
 	static GameData& Get();
-	static void		Init(const Rectf& viewport);
+	static void	Init(const Rectf& viewport, Mode mode = Mode::Menu);
+	static void SetMode(Mode mode);
 
-	//static float
+	GameData(const GameData& other) = delete;
+	void operator=(const GameData& other) = delete;
+	GameData(GameData&& other) = delete;
+	void operator=(GameData&& other) = delete;
+
+	static Mode		GetMode();
 	static Rectf	VIEWPORT();
 	static int		TILE_SIZE_PIX();
 	static float	WINDOW_NUM_TILES_X();
@@ -28,6 +36,7 @@ public:
 private:
 	GameData();
 
+	Mode	m_Mode;
 	Rectf	m_Viewport;
 	int		m_TILE_SIZE_PIX;
 	float	m_WINDOW_NUM_TILES_X;
