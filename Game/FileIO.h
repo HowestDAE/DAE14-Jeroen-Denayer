@@ -1,6 +1,8 @@
 #pragma once
 #include <fstream>
 #include <functional>
+#include "SoundEffect.h"
+#include "SoundStream.h"
 
 //Forward declarations
 class Texture;
@@ -16,7 +18,7 @@ public:
 
 	enum class Dir
 	{
-		LevelData, LevelScreenData, Texture, Font
+		LevelData, LevelScreenData, Texture, Font, Sound
 	};
 
 	static std::string GetDir(Dir dir);
@@ -26,6 +28,8 @@ public:
 	static void LoadStringArr(std::ifstream& fStream, std::vector<std::string>& vec);
 	static bool LoadTexture(const std::string& name, std::vector<uint8_t>& data, int& rows, int& cols);
 	static bool LoadTexture(const std::string& name, Texture*& pTexture);
+	static bool LoadSound(const std::string& name, SoundStream*& pSoundStream);
+	static bool LoadSound(const std::string& name, SoundEffect*& pSoundEffect);
 private:
 	FileIO();
 

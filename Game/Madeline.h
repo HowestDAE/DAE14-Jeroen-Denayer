@@ -43,6 +43,7 @@ public:
 		std::string animation;
 		MovementParameters* x;
 		MovementParameters* y;
+		std::string soundEffect;
 	};
 
 	virtual void Draw() const override;

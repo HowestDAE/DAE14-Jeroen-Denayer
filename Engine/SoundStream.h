@@ -7,8 +7,8 @@ public:
 	~SoundStream( );
 	SoundStream( const SoundStream& other ) = delete;
 	SoundStream& operator=( const SoundStream& rhs ) = delete;
-	SoundStream(SoundStream&& other) = delete;
-	SoundStream& operator=(SoundStream&& other) = delete;
+	SoundStream(SoundStream&& other) noexcept;
+	SoundStream& operator=(SoundStream&& other) noexcept;
 
 	bool IsLoaded( ) const;
 	bool Play( bool repeat ) const;

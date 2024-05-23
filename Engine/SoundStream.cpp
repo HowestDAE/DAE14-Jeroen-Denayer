@@ -18,6 +18,23 @@ SoundStream::~SoundStream( )
 	m_pMixMusic = nullptr;
 }
 
+SoundStream::SoundStream(SoundStream&& other) noexcept
+	: m_pMixMusic{ other.m_pMixMusic }
+{
+	other.m_pMixMusic = nullptr;
+}
+
+SoundStream& SoundStream::operator=(SoundStream&& other) noexcept
+{
+	if (this != &other)
+	{
+		delete m_pMixMusic;
+		m_pMixMusic = other.m_pMixMusic;
+		other.m_pMixMusic = nullptr;
+	}
+	return *this;
+}
+
 bool SoundStream::IsLoaded( ) const
 {
 	return m_pMixMusic != nullptr;

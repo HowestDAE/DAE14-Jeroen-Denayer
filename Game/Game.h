@@ -6,6 +6,7 @@
 //Forward declarations
 class LevelEditor;
 class Level;
+class SoundStream;
 
 class Game final: public BaseGame
 {
@@ -26,7 +27,7 @@ private:
 	void Play();
 	void RunEditor();
 	void Quit();
-	void ReturnToMainMenu();
+	void GoToMainMenu();
 
 	void CreateMainMenu();
 	void BindInputEvents();
@@ -36,4 +37,5 @@ private:
 	UIPanel m_MainMenu;
 	LevelEditor* m_pLevelEditor;
 	Level* m_pActiveLvl;
+	SoundStream* m_pMusic;
 };

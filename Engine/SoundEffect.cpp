@@ -17,6 +17,23 @@ SoundEffect::~SoundEffect( )
 	m_pMixChunk = nullptr;
 }
 
+SoundEffect::SoundEffect(SoundEffect&& other) noexcept
+	: m_pMixChunk{ other.m_pMixChunk }
+{
+	other.m_pMixChunk = nullptr;
+}
+
+SoundEffect& SoundEffect::operator=(SoundEffect&& rhs) noexcept
+{
+	if (this != &rhs)
+	{
+		delete m_pMixChunk;
+		m_pMixChunk = rhs.m_pMixChunk;
+		rhs.m_pMixChunk = nullptr;
+	}
+	return *this;
+}
+
 bool SoundEffect::IsLoaded( ) const
 {
 	return m_pMixChunk != nullptr;

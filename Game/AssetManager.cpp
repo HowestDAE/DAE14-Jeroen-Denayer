@@ -4,11 +4,14 @@
 #include "Texture.h"
 #include "FileIO.h"
 #include <sstream>
+#include "SoundStream.h"
 
 AssetManager::AssetManager()
 	: m_pDefaultTexture{ nullptr }
 	, m_TextureNameIdMap{ std::unordered_map<std::string, GLuint>{} }
 	, m_Textures{ std::unordered_map<GLuint, AssetManager::TextureInfo>{} }
+	, m_pSoundStream{ nullptr }
+	, m_SoundEffects{ std::unordered_map<std::string, SoundEffect>{} }
 {
 	m_pDefaultTexture = new Texture("Default.png");
 }
@@ -20,6 +23,8 @@ AssetManager::~AssetManager()
 
 	for (std::pair<const GLuint, TextureInfo>& textureInfo : am.m_Textures)
 		delete textureInfo.second.pTexture;
+
+	delete m_pSoundStream;
 }
 
 Texture* AssetManager::IGetTexture(const std::string& name)
@@ -99,4 +104,46 @@ void AssetManager::GetTextures(const std::vector<std::string>& textureNames, std
 void AssetManager::RemoveTexture(Texture* pTexture)
 {
 	Get().IRemoveTexture(pTexture);
+}
+
+bool AssetManager::PlaySoundStream(const std::string& name)
+{
+	AssetManager& am{ Get() };
+	if (am.m_pSoundStream)
+		delete am.m_pSoundStream;
+	FileIO::LoadSound(name, am.m_pSoundStream);
+	if (am.m_pSoundStream)
+		am.m_pSoundStream->Play(true);
+	return am.m_pSoundStream;
+}
+
+bool AssetManager::PlaySoundEffect(const std::string& name)
+{
+	AssetManager& am{ Get() };
+	bool succes{ false };
+	if (am.m_SoundEffects.find(name) != am.m_SoundEffects.end())
+	{
+		am.m_SoundEffects.at(name).Play(false);
+	}
+	else
+	{
+		SoundEffect* pSoundEffect{};
+		FileIO::LoadSound(name, pSoundEffect);
+		if (pSoundEffect)
+		{
+			am.m_SoundEffects.emplace(name, std::move(*pSoundEffect));
+			am.m_SoundEffects.at(name).Play(false);
+			succes = true;
+		}
+	}
+	return succes;
+}
+
+void AssetManager::RemoveSoundEffect(const std::string& name)
+{
+	AssetManager& am{ Get() };
+	if (am.m_SoundEffects.find(name) != am.m_SoundEffects.end())
+	{
+		am.m_SoundEffects.erase(name);
+	}
 }

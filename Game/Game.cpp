@@ -7,6 +7,7 @@
 #include "GameData.h"
 #include "Button.h"
 #include <functional>
+#include "SoundStream.h"
 
 Game::Game( const Window& window ) 
 	: BaseGame{ window }
@@ -14,6 +15,7 @@ Game::Game( const Window& window )
 	, m_MainMenu{ UIPanel("MainMenuBg") }
 	, m_pActiveLvl{ nullptr }
 	, m_pLevelEditor{ nullptr }
+	, m_pMusic{ nullptr }
 {
 	Rectf viewport{ GetViewPort() };
 
@@ -22,6 +24,9 @@ Game::Game( const Window& window )
 
 	switch (GameData::GetMode())
 	{
+	case GameData::Mode::Menu:
+		GoToMainMenu();
+		break;
 	case GameData::Mode::PlayLevel:
 		Play();
 		break;
@@ -39,6 +44,8 @@ Game::~Game( )
 		delete m_pLevelEditor;
 	if (m_pActiveLvl)
 		delete m_pActiveLvl;
+
+	delete m_pMusic;
 }
 
 bool Game::Update( float elapsedSec )
@@ -107,6 +114,8 @@ void Game::Play()
 	}
 	else
 		GameData::SetMode(GameData::Mode::PlayLevel);
+
+	AssetManager::PlaySoundStream("ThemeReflection");
 }
 
 void Game::RunEditor()
@@ -120,7 +129,7 @@ void Game::Quit()
 	m_RunGame = false;
 }
 
-void Game::ReturnToMainMenu()
+void Game::GoToMainMenu()
 {
 	if (m_pActiveLvl)
 	{
@@ -132,6 +141,8 @@ void Game::ReturnToMainMenu()
 		delete m_pLevelEditor;
 		m_pLevelEditor = nullptr;
 	}
+
+	AssetManager::PlaySoundStream("ThemeMainMenu");
 	GameData::SetMode(GameData::Mode::Menu);
 	m_MainMenu.MovingLMB();
 }
@@ -157,6 +168,6 @@ void Game::BindInputEvents()
 	std::function<void(void)> fMovingLMB = std::bind(&UIPanel::MovingLMB, &m_MainMenu);
 	InputManager::RegisterCallback(InputManager::MouseEvent::MovingLMB, fMovingLMB, GameData::Mode::Menu);
 
-	std::function<void(void)> fPressedEscape = std::bind(&Game::ReturnToMainMenu, this);
+	std::function<void(void)> fPressedEscape = std::bind(&Game::GoToMainMenu, this);
 	InputManager::RegisterCallback(InputManager::Key::Escape, fPressedEscape, GameData::Mode::PlayLevel);
 }

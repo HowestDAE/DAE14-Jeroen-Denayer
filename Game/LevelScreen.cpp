@@ -103,17 +103,17 @@ void LevelScreen::Draw() const
 	}
 
 	//Draw debug grid lines
-	utils::SetColor(Color4f{ 0.25f, 0.25f, 0.25f, 1.f });
-	for (int row{ }; row < m_Rows; ++row)
-	{
-		float y{ float(row * m_TileSize) };
-		utils::DrawLine(Point2f{ 0.0f, y }, Point2f{ m_Width, y });
-	}
-	for (int col{}; col < m_Cols; ++col)
-	{
-		float x{ float(col * m_TileSize) };
-		utils::DrawLine(Point2f{ x, 0.0f }, Point2f{ x, m_Height });
-	}
+	//utils::SetColor(Color4f{ 0.25f, 0.25f, 0.25f, 1.f });
+	//for (int row{ }; row < m_Rows; ++row)
+	//{
+	//	float y{ float(row * m_TileSize) };
+	//	utils::DrawLine(Point2f{ 0.0f, y }, Point2f{ m_Width, y });
+	//}
+	//for (int col{}; col < m_Cols; ++col)
+	//{
+	//	float x{ float(col * m_TileSize) };
+	//	utils::DrawLine(Point2f{ x, 0.0f }, Point2f{ x, m_Height });
+	//}
 
 	//Draw PhysicsBodies
 	for (PhysicsBody* pPhysicsBody : m_pPhysicsBodies)

@@ -3,28 +3,47 @@
 #include "Game.h"
 #include "MultiSpriteSheet.h"
 #include "InputManager.h"
+#include "AssetManager.h"
 
 Madeline::Madeline(const Point2f& pos, float width, float height)
 	: PhysicsBody(Rectf{pos.x, pos.y, width, height})
 	, m_State{ State::Idle }
 	, m_pStateInfo{ nullptr }
+	, m_StateInfoArr{
+		std::vector<StateInfo>{
+			{"Idle"				, "IdleStanding", nullptr, nullptr, ""},
+			{"Running"			, "RunFast"		, nullptr, nullptr, ""},
+			{"Jumping"			, "JumpingFast"	, nullptr, nullptr, ""},
+			{"EndingJump"		, "JumpingSlow"	, nullptr, nullptr, ""},
+			{"GroundJumping"	, "JumpingFast"	, nullptr, nullptr, "Jump"},
+			{"WallJumping"		, "JumpingFast"	, nullptr, nullptr, "WallJump"},
+			{"WallHopping"		, "JumpingFast"	, nullptr, nullptr, "WallHop"},
+			{"NeutralJumping"	, "JumpingFast"	, nullptr, nullptr, "WallJump"},
+			{"Falling"			, "Falling"		, nullptr, nullptr, ""},
+			{"Crouching"		, "Crouching"	, nullptr, nullptr, ""},
+			{"WallGrabbing"		, "Climbing"	, nullptr, nullptr, "Grab"},
+			{"WallClimbing"		, "Climbing"	, nullptr, nullptr, ""},
+			{"WallSliding"		, "Climbing"	, nullptr, nullptr, "WallSlide"},
+			{"Dashing"			, "Dashing"		, nullptr, nullptr, "Dash"}
+		}
+	}
 	//State parameters
-	, m_OnGround{}
-	, m_CanJump{}
-	, m_Jumping{}
-	, m_AirTime{}
-	, m_Grabbing{}
-	, m_AgainstWall{}
-	, m_AgainstRightWall{}
-	, m_AgainstLeftWall{}
-	, m_DistFromWall{}
-	, m_CanDash{}
-	, m_Dashing{}
-	//Constants
-	, m_LedgeJumpTime{ 0.15f }
-	, m_MaxDistFromWallToWallJump{ 2.f }
+		, m_OnGround{}
+		, m_CanJump{}
+		, m_Jumping{}
+		, m_AirTime{}
+		, m_Grabbing{}
+		, m_AgainstWall{}
+		, m_AgainstRightWall{}
+		, m_AgainstLeftWall{}
+		, m_DistFromWall{}
+		, m_CanDash{}
+		, m_Dashing{}
+		//Constants
+		, m_LedgeJumpTime{ 0.15f }
+		, m_MaxDistFromWallToWallJump{ 2.f }
 {
-	AddOverlapRect(Vector2f{m_Bounds.left - m_MaxDistFromWallToWallJump, m_Bounds.bottom + m_Bounds.height / 3 }, m_Bounds.width + 2 * m_MaxDistFromWallToWallJump, m_Bounds.height / 3);
+	AddOverlapRect(Vector2f{ m_Bounds.left - m_MaxDistFromWallToWallJump, m_Bounds.bottom + m_Bounds.height / 3 }, m_Bounds.width + 2 * m_MaxDistFromWallToWallJump, m_Bounds.height / 3);
 
 	float groundJumpHeight = 3.5f;
 	float groundJumpTime = 0.35f;
@@ -65,22 +84,34 @@ Madeline::Madeline(const Point2f& pos, float width, float height)
 		{"Dashing",			{0.f, dashAccVel.acc, dashAccVel.vel, true, false, false, true}}
 	};
 
-	m_StateInfoArr = std::vector<StateInfo>{
-		{"Idle"				, "IdleStanding", &m_MovementParametersMap["Stationary"]		, &m_MovementParametersMap["Gravity"]},
-		{"Running"			, "RunFast"		, &m_MovementParametersMap["Running"]			, &m_MovementParametersMap["Gravity"]},
-		{"Jumping"			, "JumpingFast"	, &m_MovementParametersMap["Running"]			, &m_MovementParametersMap["Gravity"]},
-		{"EndingJump"		, "JumpingSlow"	, &m_MovementParametersMap["Running"]			, &m_MovementParametersMap["DoubleGravity"]},
-		{"GroundJumping"	, "JumpingFast"	, &m_MovementParametersMap["Running"]			, &m_MovementParametersMap["GroundJumpingY"]},
-		{"WallJumping"		, "JumpingFast"	, &m_MovementParametersMap["WallJumpingX"]		, &m_MovementParametersMap["WallJumpingY"]},
-		{"WallHopping"		, "JumpingFast"	, &m_MovementParametersMap["Stationary"]		, &m_MovementParametersMap["WallHoppingY"]},
-		{"NeutralJumping"	, "JumpingFast"	, &m_MovementParametersMap["NeutralJumpingX"]	, &m_MovementParametersMap["NeutralJumpingY"]},
-		{"Falling"			, "Falling"		, &m_MovementParametersMap["Running"]			, &m_MovementParametersMap["Gravity"]},
-		{"Crouching"		, "Crouching"	, &m_MovementParametersMap["Stationary"]		, &m_MovementParametersMap["Gravity"]},
-		{"WallGrabbing"		, "Climbing"	, &m_MovementParametersMap["Stationary"]		, &m_MovementParametersMap["WallGrabbingY"]},
-		{"WallClimbing"		, "Climbing"	, &m_MovementParametersMap["Stationary"]		, &m_MovementParametersMap["WallClimbingY"]},
-		{"WallSliding"		, "Climbing"	, &m_MovementParametersMap["Stationary"]		, &m_MovementParametersMap["WallSlidingY"]},
-		{"Dashing"			, "Dashing"		, &m_MovementParametersMap["Dashing"]			, &m_MovementParametersMap["Dashing"]}
-	};
+	m_StateInfoArr[0].x = &m_MovementParametersMap["Stationary"];
+	m_StateInfoArr[0].y = &m_MovementParametersMap["Gravity"];
+	m_StateInfoArr[1].x = &m_MovementParametersMap["Running"];
+	m_StateInfoArr[1].y = &m_MovementParametersMap["Gravity"];
+	m_StateInfoArr[2].x = &m_MovementParametersMap["Running"];
+	m_StateInfoArr[2].y = &m_MovementParametersMap["Gravity"];
+	m_StateInfoArr[3].x = &m_MovementParametersMap["Running"];
+	m_StateInfoArr[3].y = &m_MovementParametersMap["DoubleGravity"];
+	m_StateInfoArr[4].x = &m_MovementParametersMap["Running"];
+	m_StateInfoArr[4].y = &m_MovementParametersMap["GroundJumpingY"];
+	m_StateInfoArr[5].x = &m_MovementParametersMap["WallJumpingX"];
+	m_StateInfoArr[5].y = &m_MovementParametersMap["WallJumpingY"];
+	m_StateInfoArr[6].x = &m_MovementParametersMap["Stationary"];
+	m_StateInfoArr[6].y = &m_MovementParametersMap["WallHoppingY"];
+	m_StateInfoArr[7].x = &m_MovementParametersMap["NeutralJumpingX"];
+	m_StateInfoArr[7].y = &m_MovementParametersMap["NeutralJumpingY"];
+	m_StateInfoArr[8].x = &m_MovementParametersMap["Running"];
+	m_StateInfoArr[8].y = &m_MovementParametersMap["Gravity"];
+	m_StateInfoArr[9].x = &m_MovementParametersMap["Stationary"];
+	m_StateInfoArr[9].y = &m_MovementParametersMap["Gravity"];
+	m_StateInfoArr[10].x = &m_MovementParametersMap["Stationary"];
+	m_StateInfoArr[10].y = &m_MovementParametersMap["WallGrabbingY"];
+	m_StateInfoArr[11].x = &m_MovementParametersMap["Stationary"];
+	m_StateInfoArr[11].y = &m_MovementParametersMap["WallClimbingY"];
+	m_StateInfoArr[12].x = &m_MovementParametersMap["Stationary"];
+	m_StateInfoArr[12].y = &m_MovementParametersMap["WallSlidingY"];
+	m_StateInfoArr[13].x = &m_MovementParametersMap["Dashing"];
+	m_StateInfoArr[13].y = &m_MovementParametersMap["Dashing"];
 
 	m_pStateInfo = &m_StateInfoArr[0];
 
@@ -137,10 +168,10 @@ void Madeline::Draw() const
 	m_pMultiSpriteSheet->Draw(dstRect);
 
 	//Draw collision boxes
-	const Rectf& wallRect{ m_OverlapRects[0] };
-	utils::SetColor(Color4f{ 1.f, 0.f, 0.f, 1.f });
-	utils::DrawRect(m_Bounds);
-	utils::DrawRect(wallRect);
+	//const Rectf& wallRect{ m_OverlapRects[0] };
+	//utils::SetColor(Color4f{ 1.f, 0.f, 0.f, 1.f });
+	//utils::DrawRect(m_Bounds);
+	//utils::DrawRect(wallRect);
 }
 
 void Madeline::Update(float dt)
@@ -163,8 +194,13 @@ void Madeline::CollisionInfoResponse(int idx, const CollisionInfo& ci)
 	switch (CollisionRectNames(idx))
 	{
 	case CollisionRectNames::Body:
+	{
+		bool prevOnGround{ m_OnGround };
 		m_OnGround = m_Vel.y <= 0.f && ci.collDir.down;
+		if (!prevOnGround && m_OnGround)
+			AssetManager::PlaySoundEffect("GroundHit");
 		break;
+	}
 	case CollisionRectNames::WallDetection:
 		m_AgainstWall = ci.collDir.x;
 		m_AgainstRightWall = ci.collDir.right;
@@ -284,6 +320,9 @@ void Madeline::InitialiseState()
 			m_pMultiSpriteSheet->Flip(inputDir.x < 0);
 		}
 	}
+
+	//Play Sound
+	AssetManager::PlaySoundEffect(m_pStateInfo->soundEffect);
 }
 
 void Madeline::UpdateState(float dt)

@@ -1,9 +1,11 @@
 #pragma once
 #include <vector>
 #include <unordered_map>
+#include "SoundEffect.h"
 
 //Forward declarations
 class Texture;
+class SoundStream;
 
 class AssetManager final
 {
@@ -31,6 +33,9 @@ public:
 	static Texture* GetTexture(const std::string& name);
 	static void GetTextures(const std::vector<std::string>& textureNames, std::vector<Texture*>& textureArr);
 	static void RemoveTexture(Texture* pTexture);
+	static bool PlaySoundStream(const std::string& name);
+	static bool PlaySoundEffect(const std::string& name);
+	static void RemoveSoundEffect(const std::string& name);
 private:
 	AssetManager();
 	~AssetManager();
@@ -40,5 +45,7 @@ private:
 	Texture* m_pDefaultTexture;
 	std::unordered_map<std::string, GLuint> m_TextureNameIdMap;
 	std::unordered_map<GLuint, TextureInfo> m_Textures;
+	SoundStream* m_pSoundStream;
+	std::unordered_map<std::string, SoundEffect> m_SoundEffects;
 };
 

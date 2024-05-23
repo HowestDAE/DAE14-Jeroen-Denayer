@@ -8,8 +8,8 @@ public:
 	~SoundEffect( );
 	SoundEffect(const SoundEffect& other) = delete;
 	SoundEffect& operator=(const SoundEffect& rhs) = delete;
-	SoundEffect( SoundEffect&& other) = delete;
-	SoundEffect& operator=( SoundEffect&& rhs) = delete;
+	SoundEffect( SoundEffect&& other) noexcept;
+	SoundEffect& operator=( SoundEffect&& rhs) noexcept;
 
 	bool IsLoaded( ) const;
 	bool Play( const int loops ) const;
@@ -18,7 +18,6 @@ public:
 	static void StopAll( );
 	static void PauseAll( );
 	static void ResumeAll( );
-
 private:
 	Mix_Chunk* m_pMixChunk;
 };

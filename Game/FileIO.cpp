@@ -6,7 +6,7 @@
 #include "Texture.h"
 
 FileIO::FileIO()
-	: m_Dirs{ std::vector <std::string>{ "LevelsData/", "LevelScreensData/", "Textures/", "Fonts/" }}
+	: m_Dirs{ std::vector <std::string>{ "LevelsData/", "LevelScreensData/", "Textures/", "Fonts/", "Sound/" }}
 {
 }
 
@@ -110,6 +110,40 @@ bool FileIO::LoadTexture(const std::string& name, Texture*& pTexture)
 			pTexture = new Texture(path.str());
 			succes = true;
 		}
+	}
+	return succes;
+}
+
+bool FileIO::LoadSound(const std::string& name, SoundStream*& pSoundStream)
+{
+	bool succes{ false };
+	std::stringstream path{};
+	path << FileIO::GetDir(FileIO::Dir::Sound) << name << ".mp3";
+	if (!std::filesystem::exists(path.str()))
+	{
+		std::cout << "FileIO::LoadSound(): Couldn't find sound on disk: " << path.str() << std::endl;
+	}
+	else
+	{
+		pSoundStream = new SoundStream(path.str());
+		succes = true;
+	}
+	return succes;
+}
+
+bool FileIO::LoadSound(const std::string& name, SoundEffect*& pSoundEffect)
+{
+	bool succes{ false };
+	std::stringstream path{};
+	path << FileIO::GetDir(FileIO::Dir::Sound) << name << ".wav";
+	if (!std::filesystem::exists(path.str()))
+	{
+		std::cout << "FileIO::LoadSound(): Couldn't find sound on disk: " << path.str() << std::endl;
+	}
+	else
+	{
+		pSoundEffect = new SoundEffect(path.str());
+		succes = true;
 	}
 	return succes;
 }
