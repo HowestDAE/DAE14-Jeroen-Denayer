@@ -15,10 +15,13 @@ LevelScreen::LevelScreen(const std::string& name, Level* pLevel)
 	, m_TileSize{ GameData::TILE_SIZE_PIX() }
 	, m_PixPerM{ GameData::PIX_PER_M() }
 	, m_pPhysicsBodies{ std::vector<PhysicsBody*>{} }
+	, m_pPhysicsBodiesOverlapinggates{ std::unordered_map<PhysicsBody*, LevelScreenGate&>{}  }
 	, m_pLevel{ pLevel }
 	, m_pTextures{ std::vector<Texture*>{} }
 	, m_IdToTextureIdx{ std::vector<int>{} }
-	, m_Gates{ std::vector<Gate>{} }
+	, m_Gates{ std::vector<LevelScreenGate>{} }
+	, m_pCrystal{ AssetManager::GetTexture("Crystal") }
+	, m_CrystalPositions{ std::vector<Vector2f>{} }
 {
 	LoadData();
 }
@@ -30,6 +33,8 @@ LevelScreen::~LevelScreen()
 
 	for (PhysicsBody* pPhysicsBody : m_pPhysicsBodies)
 		delete pPhysicsBody;
+
+	AssetManager::RemoveTexture(m_pCrystal);
 }
 
 LevelScreen& LevelScreen::operator=(LevelScreen&& other) noexcept
@@ -59,12 +64,19 @@ LevelScreen& LevelScreen::operator=(LevelScreen&& other) noexcept
 		}
 		m_pPhysicsBodies = std::move(other.m_pPhysicsBodies);
 		m_Gates = std::move(other.m_Gates);
+		m_CrystalPositions = std::move(other.m_CrystalPositions);
 	}
 	return *this;
 }
 
 void LevelScreen::Draw() const
 {
+	//Draw Crystals
+	Vector2f offset{ m_pCrystal->GetWidth() / 2, m_pCrystal->GetHeight() / 2 };
+	for (const Vector2f& pos : m_CrystalPositions)
+		m_pCrystal->Draw(Point2f{ pos.x - offset.x, pos.y - offset.y });
+
+	//Draw tiles
 	for (int i{}; i < m_Data.size(); ++i)
 	{
 		TileIdx tileIdx{ utils::GetTileIdxFromIdx(i, m_Rows, m_Cols) };
@@ -89,11 +101,11 @@ void LevelScreen::Draw() const
 					utils::FillRect(x, y, float(m_TileSize), float(m_TileSize));
 				}
 			}
-			else //Draw black rectangle, ID specifically mapped to invalid texture
-			{
-				utils::SetColor(Color4f{ 0.f, 0.f, 0.f, 1.f });
-				utils::FillRect(x, y, float(m_TileSize), float(m_TileSize));
-			}
+			//else //Draw black rectangle, ID specifically mapped to invalid texture
+			//{
+			//	utils::SetColor(Color4f{ 0.f, 0.f, 0.f, 1.f });
+			//	utils::FillRect(x, y, float(m_TileSize), float(m_TileSize));
+			//}
 		}
 		else //Draw red rectangle, ID not mapped to textureID in m_IdToTextureIdx
 		{
@@ -133,9 +145,8 @@ bool LevelScreen::Update(float dt)
 			continue;
 		}
 
-		pPhysicsBody->Update(dt);
-		//Move the PhysicsBody and check for collision
-		pPhysicsBody->UpdatePhysics(dt);
+		pPhysicsBody->Update(dt); //Derived update
+		pPhysicsBody->UpdatePhysics(dt); //Base update
 		CollisionInfo bodyCI{ MovePhysicsRect(pPhysicsBody->m_Bounds, pPhysicsBody->m_Vel, dt) };
 		pPhysicsBody->CollisionInfoResponse(0, bodyCI);
 
@@ -148,19 +159,32 @@ bool LevelScreen::Update(float dt)
 			pPhysicsBody->CollisionInfoResponse(i + 1, overlapCI); // + 1 because 0 is ALWAYS the collision body
 		}
 
+		//Check collision with crystals
+		if (pPhysicsBody->m_CanDie)
+		{
+			for (Vector2f& pos : m_CrystalPositions)
+			{
+				Circlef crystal{ Point2f{pos.x, pos.y}, m_pCrystal->GetHeight() / 2 * 0.75f };
+				if (utils::IsOverlapping(pPhysicsBody->m_Bounds, crystal))
+				{
+					pPhysicsBody->m_IsDead = true;
+					levelActionRequired = true;
+				}
+			}
+		}
+
 		//Check if pPhysicsBody overlaps with any of the gates in this level
 		int gateIdx{ PhysicsBodyOverlapsGate(pPhysicsBody) };
 		if (gateIdx >= 0 && gateIdx < m_Gates.size())
 		{
+			m_pPhysicsBodiesOverlapinggates.insert({ pPhysicsBody, m_Gates[gateIdx] });
+			levelActionRequired = true;
+		}
+			
+		if (levelActionRequired)
+		{
 			it = m_pPhysicsBodies.erase(it);
-			//This map needs to be handled by the level managing this levelScreen
-			//at the end of this Update(), the map is cleared at start of Update()
-			if (m_pLevel)
-			{
-				m_pPhysicsBodiesOverlapinggates.insert({ pPhysicsBody, m_Gates[gateIdx] });
-				levelActionRequired = true;
-			}
-			else //no managing level, so delete the physicsBody
+			if (!m_pLevel)
 				delete pPhysicsBody;
 		}
 		else
@@ -174,7 +198,7 @@ bool LevelScreen::IsValid() const
 	return m_IsValid;
 }
 
-std::unordered_map<PhysicsBody*, LevelScreen::Gate&>& LevelScreen::GetPhysicsBodiesOverlapingGates()
+std::unordered_map<PhysicsBody*, LevelScreenGate&>& LevelScreen::GetPhysicsBodiesOverlapingGates()
 {
 	return m_pPhysicsBodiesOverlapinggates;
 }
@@ -184,16 +208,16 @@ void LevelScreen::AddPhysicsBody(PhysicsBody* pPhysicsBody)
 	m_pPhysicsBodies.push_back(pPhysicsBody);
 }
 
-void LevelScreen::AddPhysicsBodyThroughGate(PhysicsBody* pPhysicsBody, const Gate& gate)
+void LevelScreen::AddPhysicsBodyThroughGate(PhysicsBody* pPhysicsBody, const LevelScreenGate& gate)
 {
 	AddPhysicsBody(pPhysicsBody);
-	Rectf gateRect{ GetGateRect(gate) };
+	Rectf gateRect{ gate.GetRect(m_TileSize, m_Rows, m_Cols) };
 	Point2f spawnPos{ gateRect.left, gateRect.bottom };
-	bool IsGateVertical{ int(gate.side) % 2 == 0 };
+	bool IsGateVertical{ int(gate.GetSide()) % 2 == 0 };
 	if (IsGateVertical)
-		spawnPos.x += (gate.side == Gate::Side::Right) ? -(pPhysicsBody->m_Bounds.width + m_TileSize) : m_TileSize;
+		spawnPos.x += (gate.GetSide() == LevelScreenGate::Side::Right) ? -(pPhysicsBody->m_Bounds.width + m_TileSize) : m_TileSize;
 	else
-		spawnPos.y += (gate.side == Gate::Side::Top) ? -(pPhysicsBody->m_Bounds.height + m_TileSize) : m_TileSize;
+		spawnPos.y += (gate.GetSide() == LevelScreenGate::Side::Top) ? -(pPhysicsBody->m_Bounds.height + m_TileSize) : m_TileSize;
 
 	pPhysicsBody->SetPosition(spawnPos);
 }
@@ -294,6 +318,7 @@ void LevelScreen::LoadData()
 		FileIO::LoadStringArr(fileStream, textureNames);
 		AssetManager::GetTextures(textureNames, m_pTextures);
 		FileIO::LoadIntArr(fileStream, m_IdToTextureIdx);
+		FileIO::LoadVector2fArr(fileStream, m_CrystalPositions);
 	}
 	else
 	{
@@ -304,10 +329,24 @@ void LevelScreen::LoadData()
 
 void LevelScreen::SaveData()
 {
+	std::stringstream stream;
+	stream << "Yeet: ";
+	LevelScreen::WriteGates(stream, m_Gates);
+	stream << "\n" << "TextureNames: ";
+	std::vector<std::string> textureNames{};
+	for (Texture* pTexture : m_pTextures)
+		textureNames.push_back(pTexture->GetName());
+	FileIO::WriteStringArr(stream, textureNames);
+	stream << "\n" << "IdToTextureIdx: ";
+	FileIO::WriteIntArr(stream, m_IdToTextureIdx);
+	stream << "\n" << "CrystalPositions: ";
+	FileIO::WriteVector2fArr(stream, m_CrystalPositions);
 
+	std::ofstream oStream{ FileIO::WriteTxtFile(m_Name, FileIO::Dir::LevelScreenData) };
+	oStream << stream.str();
 }
 
-void LevelScreen::LoadGates(std::ifstream& fStream, std::vector<Gate>& gates)
+void LevelScreen::LoadGates(std::ifstream& fStream, std::vector<LevelScreenGate>& gates)
 {
 	std::string line{};
 	std::getline(fStream, line);
@@ -318,28 +357,23 @@ void LevelScreen::LoadGates(std::ifstream& fStream, std::vector<Gate>& gates)
 	{
 		std::string sGate{};
 		sstream >> sGate;
-		std::stringstream gateStream{ sGate };
-		Gate gate{};
-		std::string value{};
-		std::getline(gateStream, value, ',');
-		gate.connectedLevelScreenName = value;
-		std::getline(gateStream, value, ',');
-		gate.dstGateIdx = std::stoi(value);
-		std::getline(gateStream, value, ',');
-		if (value == "Left")
-			gate.side = Gate::Side::Left;
-		else if (value == "Top")
-			gate.side = Gate::Side::Top;
-		else if (value == "Right")
-			gate.side = Gate::Side::Right;
-		else if (value == "Bottom")
-			gate.side = Gate::Side::Bottom;
-		std::getline(gateStream, value, ',');
-		gate.startIdx = std::stoi(value);
-		std::getline(gateStream, value, ',');
-		gate.length = std::stoi(value);
-		gates.push_back(gate);
+		gates.push_back(LevelScreenGate(sGate));
 	}
+}
+
+void LevelScreen::WriteGates(std::stringstream& sStream, std::vector<LevelScreenGate>& gates)
+{
+	for (int i{}; i < gates.size(); ++i)
+	{
+		if (i != 0)
+			sStream << " ";
+		sStream << gates[i].String();
+	}
+}
+
+void LevelScreen::AddCrystal(Vector2f pos)
+{
+	m_CrystalPositions.push_back(pos);
 }
 
 
@@ -486,11 +520,10 @@ bool LevelScreen::IsCollisionTile(TileIdx tileIdx) const
 
 int LevelScreen::PhysicsBodyOverlapsGate(PhysicsBody* pPhysicsBody)
 {
-	int gateIdx{ -1 }; //invalid gate
+	int gateIdx{ -1 }; //invalid gate index
 	for (int idx{}; idx < m_Gates.size(); ++idx)
 	{
-		Gate& gate{ m_Gates[idx] };
-		Rectf gateRect{ GetGateRect(gate) };
+		Rectf gateRect{ m_Gates[idx].GetRect(m_TileSize, m_Rows, m_Cols) };
 		if (utils::IsOverlapping(pPhysicsBody->GetBounds(), gateRect))
 		{
 			gateIdx = idx;
@@ -504,31 +537,6 @@ int LevelScreen::PhysicsBodyOverlapsGate(PhysicsBody* pPhysicsBody)
 //##########################
 //Utility Functions
 //##########################
-
-Rectf LevelScreen::GetGateRect(const Gate& gate) const
-{
-	TileIdx gateStartIdx{};
-	switch (gate.side)
-	{
-	case Gate::Side::Left: case Gate::Side::Right:
-		gateStartIdx.r = gate.startIdx;
-		gateStartIdx.c = (gate.side == Gate::Side::Left) ? 0 : m_Cols;
-		break;
-	case Gate::Side::Top: case Gate::Side::Bottom:
-		gateStartIdx.r = (gate.side == Gate::Side::Bottom) ? 0 : m_Rows;
-		gateStartIdx.c = gate.startIdx;
-		break;
-	}
-
-	TileIdx gateEndIdx{ gateStartIdx };
-	bool IsGateVertical{ int(gate.side) % 2 == 0 };
-	if (IsGateVertical)
-		gateEndIdx.r += gate.length;
-	else
-		gateEndIdx.c += gate.length;
-	return Rectf{ utils::GetTileAreaRect(gateStartIdx, gateEndIdx, m_TileSize) };
-}
-
 int LevelScreen::GetTileID(TileIdx tileIdx) const
 {
 	return GetTileID(tileIdx.r, tileIdx.c);

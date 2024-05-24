@@ -23,11 +23,21 @@ std::string FileIO::GetDir(Dir dir)
 
 std::ifstream FileIO::OpenTxtFile(const std::string& name, Dir dir)
 {
-	const std::string& dirName{ FileIO::GetDir(FileIO::Dir::LevelScreenData) };
-	std::string filePath{ dirName + name + ".txt" };
-	std::ifstream stream{ filePath };
+	std::stringstream path;
+	path << FileIO::GetDir(FileIO::Dir::LevelScreenData) << name << ".txt";
+	std::ifstream stream{ path.str()};
 	if (!stream)
-		std::cout << "FileIO::OpenTxtFile(): Couldn't open file: " << filePath << std::endl;
+		std::cout << "FileIO::OpenTxtFile(): Couldn't open file: " << path.str() << std::endl;
+	return stream;
+}
+
+std::ofstream FileIO::WriteTxtFile(const std::string& name, Dir dir)
+{
+	std::stringstream path;
+	path << FileIO::GetDir(FileIO::Dir::LevelScreenData) << name << ".txt";
+	std::ofstream stream{ path.str() };
+	if (!stream)
+		std::cout << "FileIO::OpenTxtFile(): Couldn't open file: " << path.str() << std::endl;
 	return stream;
 }
 
@@ -51,6 +61,16 @@ void FileIO::LoadIntArr(std::ifstream& fStream, std::vector<int>& vec)
 	}
 }
 
+void FileIO::WriteIntArr(std::stringstream& sStream, std::vector<int>& vec)
+{
+	for (int i{}; i < vec.size(); ++i)
+	{
+		if (i != 0)
+			sStream << " ";
+		sStream << vec[i];
+	}
+}
+
 void FileIO::LoadStringArr(std::ifstream& fStream, std::vector<std::string>& vec)
 {
 	std::string line{};
@@ -62,6 +82,47 @@ void FileIO::LoadStringArr(std::ifstream& fStream, std::vector<std::string>& vec
 	{
 		sstream >> s;
 		vec.push_back(s);
+	}
+}
+
+void FileIO::WriteStringArr(std::stringstream& sStream, std::vector<std::string>& vec)
+{
+	for (int i{}; i < vec.size(); ++i)
+	{
+		if (i != 0)
+			sStream << " ";
+		sStream << vec[i];
+	}
+}
+
+void FileIO::LoadVector2fArr(std::ifstream& fStream, std::vector<Vector2f>& vec)
+{
+	std::string line{};
+	std::getline(fStream, line);
+	std::stringstream sstream{ line };
+	std::string s{};
+	sstream >> s; //extract name
+	while (sstream.rdbuf()->in_avail()) //nr characters it can still read
+	{
+		sstream >> s;
+		std::stringstream posStream{ s }; //put Vector2f in separate stream
+		Vector2f pos{};
+		std::string value{};
+		std::getline(posStream, value, ',');
+		pos.x = std::stof(value);
+		std::getline(posStream, value, ',');
+		pos.y = std::stof(value);
+		vec.push_back(pos);
+	}
+}
+
+void FileIO::WriteVector2fArr(std::stringstream& sStream, std::vector<Vector2f>& vec)
+{
+	for (int i{}; i < vec.size(); ++i)
+	{
+		if (i != 0)
+			sStream << " ";
+		sStream << vec[i].x << "," << vec[i].y;
 	}
 }
 

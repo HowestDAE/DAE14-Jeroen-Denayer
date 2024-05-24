@@ -2,6 +2,7 @@
 #include "LevelEditor.h"
 #include <filesystem>
 #include <fstream>
+#include <sstream>
 #include "Level.h"
 #include "LevelScreen.h"
 #include "Camera.h"
@@ -10,15 +11,20 @@
 #include "GameData.h"
 #include <functional>
 #include "FileIO.h"
+#include "Texture.h"
 
 LevelEditor::LevelEditor()
-	: m_DefaultMode{ Mode::ModeSelect }
+    : m_MousePos{ Vector2f{} }
+    , m_DefaultMode{ Mode::ModeSelect }
     , m_Mode{}
     , m_SelectedMode{}
     , m_ModeNames{ std::vector<std::string>{"ModeSelect", "RunLevel", "CreateLevel", "EditLevel", "CreateLevelScreen", "EditLevelScreen"} }
+    , m_EditLevelScreenMode{ EditLevelScreenMode::Default }
+    , m_EditLevelScreenModeNames{ std::vector<std::string>{"Default", "AddCrystal"}}
     , m_pCamera{ new Camera() }
     , m_pCurLevel{ nullptr }
     , m_pCurLevelScreen{ nullptr }
+    , m_PreviewTexture{ nullptr }
 {
     //To-Do: wrap this in a function
     std::function<void(void)> fClickedLMB = std::bind(&LevelEditor::ClickedLMB, this);
@@ -41,6 +47,7 @@ LevelEditor::~LevelEditor()
     delete m_pCurLevel;
     delete m_pCurLevelScreen;
     delete m_pCamera;
+    AssetManager::RemoveTexture(m_PreviewTexture);
 }
 
 void LevelEditor::Draw() const
@@ -51,20 +58,38 @@ void LevelEditor::Draw() const
     switch (m_Mode)
     {
     case Mode::EditLevelScreen:
+    {
         Point2f levelScreenDimensions{ m_pCurLevelScreen->GetDimensions() };
         m_pCamera->Aim(Rectf{ 0.f, 0.f, levelScreenDimensions.x, levelScreenDimensions.y });
         m_pCurLevelScreen->Draw();
+
+        switch (m_EditLevelScreenMode)
+        {
+        case EditLevelScreenMode::Default:
+        {
+            //Draw circle around mousePos
+            Vector2f mousePos{ InputManager::GetMouseInfo().pos };
+            utils::SetColor(Color4f{ 0.f, 1.f, 1.f, 1.f });
+            utils::DrawEllipse(mousePos.x, mousePos.y, 5.f, 5.f, 2.f);
+            break;
+        }
+        case EditLevelScreenMode::AddCrystal:
+        {
+            Vector2f pos{ m_pCamera->GetWorldPos(m_MousePos) };
+            pos -= Vector2f{ m_PreviewTexture->GetWidth() / 2, m_PreviewTexture->GetHeight() / 2 };
+            m_PreviewTexture->Draw(Point2f{ pos.x, pos.y });
+            break;
+        }
+        }
         m_pCamera->Reset();
-        //Draw circle around mousePos
-        Vector2f mousePos{ InputManager::GetMouseInfo().pos };
-        utils::SetColor(Color4f{ 0.f, 1.f, 1.f, 1.f });
-        utils::DrawEllipse(mousePos.x, mousePos.y, 5.f, 5.f, 2.f);
         break;
+    }
     }
 }
 
 void LevelEditor::Update(float dt)
 {
+    m_MousePos = InputManager::GetMouseInfo().pos;
     switch (m_Mode)
     {
     case Mode::EditLevelScreen:
@@ -81,15 +106,22 @@ void LevelEditor::KeyPressed()
             EnterSelectedMode();
         break;
     case Mode::EditLevelScreen:
-        if (InputManager::IsKeyPressed(InputManager::Key::E))
+        if (InputManager::IsKeyPressed(InputManager::Key::Escape))
+            if (m_EditLevelScreenMode == EditLevelScreenMode::Default)
+                SetDefaultMode();
+            else
+                SetEditLevelScreenMode(EditLevelScreenMode::Default);
+        else if (InputManager::IsKeyPressed(InputManager::Key::ctrl) &&
+                 InputManager::IsKeyPressed(InputManager::Key::S))
+            m_pCurLevelScreen->SaveData();
+        else if (InputManager::IsKeyPressed(InputManager::Key::E))
             SelectLevelScreenToEdit();
-        if (InputManager::IsKeyPressed(InputManager::Key::F))
+        else if (InputManager::IsKeyPressed(InputManager::Key::F))
             m_pCamera->Focus();
+        else if (InputManager::IsKeyPressed(InputManager::Key::C))
+            SetEditLevelScreenMode(EditLevelScreenMode::AddCrystal);
         break;
-    }
-
-    if (m_Mode != Mode::ModeSelect && InputManager::IsKeyPressed(InputManager::Key::Escape))
-        SetDefaultMode();
+    }   
 }
 
 
@@ -98,11 +130,20 @@ void LevelEditor::ClickedLMB()
     switch (m_Mode)
     {
     case Mode::EditLevelScreen:
-        Vector2f mousePos{ InputManager::GetMouseInfo().pos };
-        Vector2f worldPos{ m_pCamera->GetWorldPos(mousePos) };
-        TileIdx tileIdx{ utils::GetTileIdxByPos(worldPos, GameData::TILE_SIZE_PIX()) };
-        std::cout << tileIdx.r << " " << tileIdx.c << std::endl;
-        break;
+        switch (m_EditLevelScreenMode)
+        {
+        case EditLevelScreenMode::Default:
+        {
+            Vector2f mousePos{ InputManager::GetMouseInfo().pos };
+            Vector2f worldPos{ m_pCamera->GetWorldPos(mousePos) };
+            TileIdx tileIdx{ utils::GetTileIdxByPos(worldPos, GameData::TILE_SIZE_PIX()) };
+            std::cout << tileIdx.r << " " << tileIdx.c << std::endl;
+            break;
+        }
+        case EditLevelScreenMode::AddCrystal:
+            m_pCurLevelScreen->AddCrystal(m_pCamera->GetWorldPos(m_MousePos));
+            break;
+        }
     }
 }
 
@@ -276,11 +317,11 @@ void LevelEditor::SelectLevelScreenToEdit()
     std::cout << "Enter a level screen name: ";
     std::string name{};
     std::cin >> name;
-    const std::string& dir{ FileIO::GetDir(FileIO::Dir::LevelScreenData) };
-    std::string path{ dir + name + ".bmp"};
-    if (!std::filesystem::exists(path))
+    std::stringstream path;
+    path << FileIO::GetDir(FileIO::Dir::LevelScreenData) << name + ".bmp";
+    if (!std::filesystem::exists(path.str()))
     {
-        std::cout << "LevelEditor::SelectLevelScreenToEdit(): Couldn't find: " << path << std::endl;
+        std::cout << "LevelEditor::SelectLevelScreenToEdit(): Couldn't find: " << path.str() << std::endl;
         SetDefaultMode();
         return;
     }
@@ -316,10 +357,21 @@ void LevelEditor::EnterSelectedMode()
         CreateLevelScreen();
         break;
     case Mode::EditLevelScreen:
+        SetEditLevelScreenMode(EditLevelScreenMode::Default);
         if (!m_pCurLevelScreen)
             SelectLevelScreenToEdit();
+        m_PreviewTexture = AssetManager::GetTexture("Crystal");
         break;
     }
+}
+
+void LevelEditor::SetEditLevelScreenMode(EditLevelScreenMode mode)
+{
+    if (m_EditLevelScreenMode == mode)
+        return;
+    m_EditLevelScreenMode = mode;
+    int idx{ int(m_EditLevelScreenMode) };
+    std::cout << "EditLevelScreen mode changed to: " << m_EditLevelScreenModeNames[idx] << std::endl;
 }
 
 void LevelEditor::CreateDirIfDoesntExist(const std::string& dir)

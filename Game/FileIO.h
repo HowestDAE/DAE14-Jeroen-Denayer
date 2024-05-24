@@ -23,9 +23,14 @@ public:
 
 	static std::string GetDir(Dir dir);
 	static std::ifstream OpenTxtFile(const std::string& name, Dir dir);
+	static std::ofstream WriteTxtFile(const std::string& name, Dir dir);
 	static void CloseFile(std::ifstream& stream);
 	static void LoadIntArr(std::ifstream& fStream, std::vector<int>& vec);
+	static void WriteIntArr(std::stringstream& sStream, std::vector<int>& vec);
 	static void LoadStringArr(std::ifstream& fStream, std::vector<std::string>& vec);
+	static void WriteStringArr(std::stringstream& sStream, std::vector<std::string>& vec);
+	static void LoadVector2fArr(std::ifstream& fStream, std::vector<Vector2f>& vec);
+	static void WriteVector2fArr(std::stringstream& sStream, std::vector<Vector2f>& vec);
 	static bool LoadTexture(const std::string& name, std::vector<uint8_t>& data, int& rows, int& cols);
 	static bool LoadTexture(const std::string& name, Texture*& pTexture);
 	static bool LoadSound(const std::string& name, SoundStream*& pSoundStream);

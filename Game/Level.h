@@ -2,6 +2,7 @@
 #include <vector>
 #include <unordered_map>
 #include "LevelScreen.h"
+#include "LevelScreenGate.h"
 
 //Forward declarations
 class PhysicsBody;
@@ -21,11 +22,12 @@ public:
 
 	void Draw() const;
 	void Update(float dt);
+	void Reset();
 	bool IsValid() const;
 private:
 	//Functions
 	void LoadLevel(const std::string& name);
-	void TransferPhysicsBody(PhysicsBody* pPhysicsBody, const LevelScreen::Gate& srcGate);
+	void TransferPhysicsBody(PhysicsBody* pPhysicsBody, const LevelScreenGate& srcGate);
 
 	//Members
 	bool m_IsValid;

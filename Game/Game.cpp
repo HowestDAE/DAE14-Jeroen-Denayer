@@ -20,7 +20,7 @@ Game::Game( const Window& window )
 	Rectf viewport{ GetViewPort() };
 
 	CreateMainMenu();
-	GameData::Init(viewport, GameData::Mode::Menu);
+	GameData::Init(viewport, GameData::Mode::PlayLevel);
 
 	switch (GameData::GetMode())
 	{

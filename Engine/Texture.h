@@ -21,10 +21,11 @@ public:
 	bool IsCreationOk( ) const;
 	void Flip(bool flipX);
 	GLuint GetId() const;
-
+	std::string GetName() const;
 private:
 	//DATA MEMBERS
 	GLuint m_Id;
+	std::string m_Name;
 	float m_Width;
 	float m_Height;
 	bool m_CreationOk;

@@ -20,6 +20,7 @@ public:
 	struct MouseInfo
 	{
 		Vector2f pos;
+		bool pressingLMB;
 		Vector2f dragDist;
 		int scrollDir;
 	};
@@ -36,7 +37,7 @@ public:
 
 	enum class Key
 	{
-		None, Enter, Escape, E, F, Up, Down
+		None, Enter, Escape, E, F, C, Up, Down, ctrl, S
 	};
 
 	enum class GameAction
@@ -81,6 +82,7 @@ private:
 	//Functions
 	void TriggerCallbacks();
 	SDL_GameController* FindController();
+	void AddRemoveKey(Key key, bool keyDown);
 
 	//Members
 	const Uint8* m_pKeyStates;

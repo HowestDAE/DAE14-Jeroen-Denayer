@@ -5,22 +5,24 @@
 #include "Camera.h"
 #include "GameData.h"
 #include "FileIO.h"
+#include "AssetManager.h"
 
 Level::Level()
 	: m_IsValid{ true }
+	, m_StartRoom{ "Room4" }
 	, m_pCamera{ new Camera() }
 	, m_pPlayer{ nullptr }
 	, m_pCurLevelScreen{ nullptr }
 	, m_pNextLevelScreen{ nullptr }
 {
-	LoadLevel("MainRoom");
+	LoadLevel(m_StartRoom); //hardcoded 1st level atm
 	m_IsValid = m_pCurLevelScreen->IsValid();
 
 	//Create the player Madeline
 	float madelinePixWidth{ 8 };
 	float madelinePixHeight{ 16 };
 	AccAndVel madelineJumpAccAndVel{ utils::AccAndVelToTravelDistInTime(3.5f, 0.35f) };
-	Point2f pos{ 8 * 8, 2 * 8 };
+	Point2f pos{ 8 * 8, 4 * 8 }; //hardcoded spawn position
 	m_pPlayer = new Madeline(pos, madelinePixWidth, madelinePixHeight);
 	m_pCurLevelScreen->AddPhysicsBody(m_pPlayer);
 }
@@ -51,12 +53,33 @@ void Level::Update(float dt)
 	bool actionRequired{};
 	if (m_pCurLevelScreen)
 		actionRequired = m_pCurLevelScreen->Update(dt);
+
 	if (actionRequired)
 	{
-		std::unordered_map<PhysicsBody*, LevelScreen::Gate&>& physicsBodiesOverlappingGates{ m_pCurLevelScreen->GetPhysicsBodiesOverlapingGates() };
-		for (auto it{ physicsBodiesOverlappingGates.begin() }; it != physicsBodiesOverlappingGates.end(); ++it)
-			TransferPhysicsBody((*it).first, (*it).second);
+		//Check if the player is dead
+		if (m_pPlayer->IsDead())
+		{
+			AssetManager::PlaySoundEffect("Death");
+			Reset();
+		}
+		else
+		{
+			//Transfer all physics bodies that overlap a gate
+			std::unordered_map<PhysicsBody*, LevelScreenGate&>& physicsBodiesOverlappingGates{ m_pCurLevelScreen->GetPhysicsBodiesOverlapingGates() };
+			for (auto it{ physicsBodiesOverlappingGates.begin() }; it != physicsBodiesOverlappingGates.end(); ++it)
+				TransferPhysicsBody((*it).first, (*it).second);
+		}
 	}
+}
+
+void Level::Reset()
+{
+	LoadLevel(m_StartRoom); //hardcoded 1st level atm
+
+	m_pCurLevelScreen->AddPhysicsBody(m_pPlayer);
+	Point2f pos{ 8 * 8, 4 * 8 }; //hardcoded spawn position
+	m_pPlayer->SetIsDead(false);
+	m_pPlayer->SetPosition(pos);
 }
 
 bool Level::IsValid() const
@@ -92,26 +115,24 @@ then the old level is deleted, the new level is instantiated, and the player is 
 to this new level
 Return: true if the player moved to a new level, otherwise false
 */
-void Level::TransferPhysicsBody(PhysicsBody* pPhysicsBody, const LevelScreen::Gate& srcGate)
+void Level::TransferPhysicsBody(PhysicsBody* pPhysicsBody, const LevelScreenGate& srcGate)
 {
 	bool deletePhysicsBody{true};
 	if (m_pPlayer && pPhysicsBody == m_pPlayer)
 	{
-		std::ifstream fileStream{ FileIO::OpenTxtFile(srcGate.connectedLevelScreenName, FileIO::Dir::LevelScreenData) };
+		std::ifstream fileStream{ FileIO::OpenTxtFile(srcGate.GetconnectedLevelScreenName(), FileIO::Dir::LevelScreenData)};
 		if (fileStream)
 		{
-			std::vector<LevelScreen::Gate> gates{};
+			std::vector<LevelScreenGate> gates{};
 			LevelScreen::LoadGates(fileStream, gates);
+			int dstGateIdx{ srcGate.GetdstGateIdx() };
 			//check if a matching gate exists
-			if (srcGate.dstGateIdx >= 0 && srcGate.dstGateIdx < gates.size())
+			if (dstGateIdx >= 0 && dstGateIdx < gates.size())
 			{
-				LevelScreen::Gate& dstGate{ gates[srcGate.dstGateIdx] };
-				//check if the dstGate is on the opposite side and with equal length to the srcGate
-				bool srcGateIsVertical{ int(srcGate.side) % 2 == 0 };
-				bool dstGateIsVertical{ int(dstGate.side) % 2 == 0 };
-				if (srcGateIsVertical == dstGateIsVertical && srcGate.side != dstGate.side && srcGate.length == dstGate.length)
+				LevelScreenGate& dstGate{ gates[dstGateIdx] };
+				if (srcGate == dstGate)
 				{
-					LoadLevel(srcGate.connectedLevelScreenName);
+					LoadLevel(srcGate.GetconnectedLevelScreenName());
 					//Transfer the player to this new level via the dstGate
 					m_pCurLevelScreen->AddPhysicsBodyThroughGate(pPhysicsBody, dstGate);
 					deletePhysicsBody = false;

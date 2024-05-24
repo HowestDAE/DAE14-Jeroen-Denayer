@@ -6,7 +6,7 @@
 #include "AssetManager.h"
 
 Madeline::Madeline(const Point2f& pos, float width, float height)
-	: PhysicsBody(Rectf{pos.x, pos.y, width, height})
+	: PhysicsBody(Rectf{pos.x, pos.y, width, height}, true)
 	, m_State{ State::Idle }
 	, m_pStateInfo{ nullptr }
 	, m_StateInfoArr{
@@ -322,7 +322,8 @@ void Madeline::InitialiseState()
 	}
 
 	//Play Sound
-	AssetManager::PlaySoundEffect(m_pStateInfo->soundEffect);
+	if (m_pStateInfo->soundEffect != "")
+		AssetManager::PlaySoundEffect(m_pStateInfo->soundEffect);
 }
 
 void Madeline::UpdateState(float dt)

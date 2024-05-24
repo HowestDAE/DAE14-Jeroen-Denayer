@@ -2,20 +2,31 @@
 #include <iostream>
 #include <string>
 #include "Texture.h"
-
+#include <filesystem>
+#include <sstream>
 
 Texture::Texture( const std::string& imagePath )
 	:m_Id{ }
+	,m_Name{}
 	,m_Width{ 10.0f }
 	,m_Height{ 10.0f }
 	,m_CreationOk{ false }
 	,m_FlipInX{ false }
 {
 	CreateFromImage( imagePath );
+
+	//Extract name from path
+	size_t lastSlashPos{ imagePath.find_last_of('/') };
+	size_t lastDotPos{ imagePath.find_last_of('.') };
+	if (lastSlashPos != std::string::npos && lastDotPos != std::string::npos && lastSlashPos < lastDotPos)
+		m_Name = imagePath.substr(lastSlashPos + 1, lastDotPos - lastSlashPos - 1);
+	else
+		std::cout << "Invalid path format" << std::endl;
 }
 
 Texture::Texture( const std::string& text, TTF_Font *pFont, const Color4f& textColor )
 	:m_Id{}
+	,m_Name{ text }
 	,m_Width{ 10.0f }
 	,m_Height{ 10.0f }
 	,m_CreationOk{ false }
@@ -26,6 +37,7 @@ Texture::Texture( const std::string& text, TTF_Font *pFont, const Color4f& textC
 
 Texture::Texture( const std::string& text, const std::string& fontPath, int ptSize, const Color4f& textColor )
 	:m_Id{}
+	,m_Name{ text }
 	,m_Width{ 10.0f }
 	,m_Height{ 10.0f }
 	,m_CreationOk{ false }
@@ -357,6 +369,11 @@ void Texture::Flip(bool flipX)
 GLuint Texture::GetId() const
 {
 	return m_Id;
+}
+
+std::string Texture::GetName() const
+{
+	return m_Name;
 }
 
 void Texture::DrawFilledRect(const Rectf& rect) const

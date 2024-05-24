@@ -1,12 +1,14 @@
 #include "pch.h"
 #include "PhysicsBody.h"
 
-PhysicsBody::PhysicsBody(const Rectf& bounds, int idx)
+PhysicsBody::PhysicsBody(const Rectf& bounds, bool canDie)
 	: m_Bounds{ bounds }
 	, m_Vel{ Vector2f{} }
 	, m_TargetVel{ Vector2f{} }
 	, m_Acc{ Vector2f{} }
 	, m_OverlapRects{ std::vector<Rectf>{} }
+	, m_CanDie{ canDie }
+	, m_IsDead{ false }
 {
 }
 
@@ -60,4 +62,14 @@ void PhysicsBody::SetMovement(const Vector2f& targetVel, const Vector2f& vel, co
 Rectf PhysicsBody::GetBounds() const
 {
 	return m_Bounds;
+}
+
+bool PhysicsBody::IsDead() const
+{
+	return m_IsDead;
+}
+
+void PhysicsBody::SetIsDead(bool isDead)
+{
+	m_IsDead = isDead;
 }

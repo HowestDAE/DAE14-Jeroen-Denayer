@@ -2,6 +2,7 @@
 #include <vector>
 #include <unordered_map>
 #include "Game.h"
+#include "LevelScreenGate.h"
 
 //Forward declarations
 class PhysicsBody;
@@ -18,28 +19,13 @@ public:
 	LevelScreen(LevelScreen&& other) = delete;
 	LevelScreen& operator=(LevelScreen&& other) noexcept;
 
-	struct Gate
-	{
-		//Left/Right = even/horizontal, Top/Bottom = uneven/vertical
-		enum class Side
-		{
-			Left, Top, Right, Bottom
-		};
-
-		std::string connectedLevelScreenName;
-		int dstGateIdx;
-		Side side;
-		int startIdx; //Start row or column depending on the Side
-		int length;
-	};
-
 	void Draw() const;
 	bool Update(float dt);
 	bool IsValid() const;
-	std::unordered_map<PhysicsBody*, Gate&>& GetPhysicsBodiesOverlapingGates();
+	std::unordered_map<PhysicsBody*, LevelScreenGate&>& GetPhysicsBodiesOverlapingGates();
 
 	void AddPhysicsBody(PhysicsBody* pPhysicsBody);
-	void AddPhysicsBodyThroughGate(PhysicsBody* pPhysicsBody, const Gate& gate);
+	void AddPhysicsBodyThroughGate(PhysicsBody* pPhysicsBody, const LevelScreenGate& gate);
 
 	CollisionInfo DetectRectCollision(const Rectf& bounds, bool checkXDir = true, bool checkYDir = true, const Vector2f& vel = Vector2f{}, float time = 0.f, bool checkVelDir = false) const;
 	CollisionInfo MovePhysicsRect(Rectf& bounds, Vector2f& vel, float time) const;
@@ -50,7 +36,9 @@ public:
 
 	void LoadData();
 	void SaveData();
-	static void LoadGates(std::ifstream& fStream, std::vector<Gate>& gates);
+	static void LoadGates(std::ifstream& fStream, std::vector<LevelScreenGate>& gates);
+	static void WriteGates(std::stringstream& sStream, std::vector<LevelScreenGate>& gates);
+	void AddCrystal(Vector2f pos);
 private:
 	//Functions
 	CollisionDir GetCollisionDir(const Rectf& bounds, bool checkXDir = true, bool checkYDir = true, const Vector2f& velDist = Vector2f{}, float time = 0.f, bool checkVelDir = false) const;
@@ -60,7 +48,6 @@ private:
 	bool IsCollisionTile(TileIdx tileIdx) const;
 	int PhysicsBodyOverlapsGate(PhysicsBody* pPhysicsBody);
 
-	Rectf GetGateRect(const Gate& gate) const;
 	int GetTileID(TileIdx tileIdx) const;
 	int GetTileID(int row, int col) const;
 
@@ -78,7 +65,9 @@ private:
 	std::vector<int> m_IdToTextureIdx;
 	std::vector<uint8_t> m_Data;
 	std::vector<PhysicsBody*> m_pPhysicsBodies;
-	std::unordered_map<PhysicsBody*, Gate&> m_pPhysicsBodiesOverlapinggates;
-	std::vector<Gate> m_Gates;
+	std::unordered_map<PhysicsBody*, LevelScreenGate&> m_pPhysicsBodiesOverlapinggates;
+	std::vector<LevelScreenGate> m_Gates;
+	Texture* m_pCrystal;
+	std::vector<Vector2f> m_CrystalPositions;
 };
 

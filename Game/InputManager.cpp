@@ -123,6 +123,7 @@ void InputManager::IReset()
 	m_MouseInfo.dragDist = Vector2f{};
 	m_MouseInfo.scrollDir = 0;
 
+	m_MouseEvents.erase(MouseEvent::ClickedLMB);
 	m_MouseEvents.erase(MouseEvent::MovingLMB);
 	m_MouseEvents.erase(MouseEvent::ScrollingMMB);
 	m_MouseEvents.erase(MouseEvent::DraggingMMB);
@@ -188,16 +189,10 @@ void InputManager::ProcessKeyEvent(const SDL_KeyboardEvent& e, bool keyDown)
 	switch (e.keysym.sym)
 	{
 	case SDLK_RETURN:
-		if (keyDown)
-			m_PressedKeys.emplace(Key::Enter);
-		else
-			m_PressedKeys.erase(Key::Enter);
+		AddRemoveKey(Key::Enter, keyDown);
 		break;
 	case SDLK_ESCAPE:
-		if (keyDown)
-			m_PressedKeys.emplace(Key::Escape);
-		else
-			m_PressedKeys.erase(Key::Escape);
+		AddRemoveKey(Key::Escape, keyDown);
 		break;
 	case SDLK_SPACE: case SDLK_UP:
 		if (keyDown)
@@ -218,16 +213,19 @@ void InputManager::ProcessKeyEvent(const SDL_KeyboardEvent& e, bool keyDown)
 			m_GameActions.erase(GameAction::Dash);
 		break;
 	case SDLK_e:
-		if (keyDown)
-			m_PressedKeys.emplace(Key::E);
-		else
-			m_PressedKeys.erase(Key::E);
+		AddRemoveKey(Key::E, keyDown);
 		break;
 	case SDLK_f:
-		if (keyDown)
-			m_PressedKeys.emplace(Key::F);
-		else
-			m_PressedKeys.erase(Key::F);
+		AddRemoveKey(Key::F, keyDown);
+		break;
+	case SDLK_c:
+		AddRemoveKey(Key::C, keyDown);
+		break;
+	case SDLK_LCTRL:
+		AddRemoveKey(Key::ctrl, keyDown);
+		break;
+	case SDLK_s:
+		AddRemoveKey(Key::S, keyDown);
 		break;
 	}
 }
@@ -251,10 +249,16 @@ void InputManager::ProcessMouseButtonEvent(const SDL_MouseButtonEvent& e, bool b
 	switch (e.button)
 	{
 	case SDL_BUTTON_LEFT:
-		if (buttonDown)
+		if (buttonDown && !m_MouseInfo.pressingLMB)
+		{
+			m_MouseInfo.pressingLMB = true;
 			m_MouseEvents.emplace(MouseEvent::ClickedLMB);
+		}
 		else
+		{
+			m_MouseInfo.pressingLMB = false;
 			m_MouseEvents.erase(MouseEvent::ClickedLMB);
+		}
 		break;
 	case SDL_BUTTON_MIDDLE:
 		if (buttonDown)
@@ -329,4 +333,12 @@ SDL_GameController* InputManager::FindController()
 		}
 	}
 	return nullptr;
+}
+
+void InputManager::AddRemoveKey(Key key, bool keyDown)
+{
+	if (keyDown)
+		m_PressedKeys.emplace(key);
+	else
+		m_PressedKeys.erase(key);
 }
