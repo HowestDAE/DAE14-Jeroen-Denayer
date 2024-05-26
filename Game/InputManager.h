@@ -20,7 +20,9 @@ public:
 	struct MouseInfo
 	{
 		Vector2f pos;
+		bool moving;
 		bool pressingLMB;
+		bool pressingMMB;
 		Vector2f dragDist;
 		int scrollDir;
 	};
@@ -32,12 +34,12 @@ public:
 
 	enum class MouseEvent
 	{
-		None, ClickedLMB, MovingLMB, ClickedMMB, ScrollingMMB, DraggingMMB
+		None, ClickedLMB, ReleasedLMB, DraggingLMB, MovingLMB, ClickedMMB, ScrollingMMB, DraggingMMB
 	};
 
 	enum class Key
 	{
-		None, Enter, Escape, E, F, C, Up, Down, ctrl, S
+		None, Enter, Escape, E, F, C, B, Up, Down, ctrl, S
 	};
 
 	enum class GameAction

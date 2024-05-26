@@ -12,6 +12,7 @@
 #include <functional>
 #include "FileIO.h"
 #include "Texture.h"
+#include "FallingBlock.h"
 
 LevelEditor::LevelEditor()
     : m_MousePos{ Vector2f{} }
@@ -20,11 +21,12 @@ LevelEditor::LevelEditor()
     , m_SelectedMode{}
     , m_ModeNames{ std::vector<std::string>{"ModeSelect", "RunLevel", "CreateLevel", "EditLevel", "CreateLevelScreen", "EditLevelScreen"} }
     , m_EditLevelScreenMode{ EditLevelScreenMode::Default }
-    , m_EditLevelScreenModeNames{ std::vector<std::string>{"Default", "AddCrystal"}}
+    , m_EditLevelScreenModeNames{ std::vector<std::string>{"Default", "AddCrystal", "AddFallingBlock"} }
     , m_pCamera{ new Camera() }
     , m_pCurLevel{ nullptr }
     , m_pCurLevelScreen{ nullptr }
     , m_PreviewTexture{ nullptr }
+    , m_TempFallingBlock{ FallingBlockData{} }
 {
     //To-Do: wrap this in a function
     std::function<void(void)> fClickedLMB = std::bind(&LevelEditor::ClickedLMB, this);
@@ -39,6 +41,8 @@ LevelEditor::LevelEditor()
     std::function<void(void)> fKeyPressed = std::bind(&LevelEditor::KeyPressed, this);
     InputManager::RegisterCallback(InputManager::Key::None, fKeyPressed, GameData::Mode::RunEditor);
 
+    std::function<void(void)> fReleasedLMB = std::bind(&LevelEditor::ReleasedLMB, this);
+    InputManager::RegisterCallback(InputManager::MouseEvent::ReleasedLMB, fReleasedLMB, GameData::Mode::RunEditor);
     SetDefaultMode();
 }
 
@@ -78,6 +82,20 @@ void LevelEditor::Draw() const
             Vector2f pos{ m_pCamera->GetWorldPos(m_MousePos) };
             pos -= Vector2f{ m_PreviewTexture->GetWidth() / 2, m_PreviewTexture->GetHeight() / 2 };
             m_PreviewTexture->Draw(Point2f{ pos.x, pos.y });
+            break;
+        }
+        case EditLevelScreenMode::AddFallingBlock:
+        {
+            if (InputManager::GetMouseInfo().pressingLMB)
+            {
+                TileIdx mouseTileIdx{ GetMouseTileIdx() };
+                float tileSize{ float(GameData::TILE_SIZE_PIX()) };
+                mouseTileIdx.r += 1;
+                mouseTileIdx.c += 1;
+                Rectf rect{ utils::GetTileAreaRect(mouseTileIdx, m_TempFallingBlock.corner1, tileSize) };
+                utils::SetColor(Color4f{ 1.f, 0.f, 0.f, 1.f });
+                utils::DrawRect(rect, 3.f);
+            }
             break;
         }
         }
@@ -120,6 +138,8 @@ void LevelEditor::KeyPressed()
             m_pCamera->Focus();
         else if (InputManager::IsKeyPressed(InputManager::Key::C))
             SetEditLevelScreenMode(EditLevelScreenMode::AddCrystal);
+        else if (InputManager::IsKeyPressed(InputManager::Key::B))
+            SetEditLevelScreenMode(EditLevelScreenMode::AddFallingBlock);
         break;
     }   
 }
@@ -134,14 +154,42 @@ void LevelEditor::ClickedLMB()
         {
         case EditLevelScreenMode::Default:
         {
-            Vector2f mousePos{ InputManager::GetMouseInfo().pos };
-            Vector2f worldPos{ m_pCamera->GetWorldPos(mousePos) };
-            TileIdx tileIdx{ utils::GetTileIdxByPos(worldPos, GameData::TILE_SIZE_PIX()) };
+            TileIdx tileIdx{ GetMouseTileIdx() };
             std::cout << tileIdx.r << " " << tileIdx.c << std::endl;
             break;
         }
         case EditLevelScreenMode::AddCrystal:
             m_pCurLevelScreen->AddCrystal(m_pCamera->GetWorldPos(m_MousePos));
+            break;
+        case EditLevelScreenMode::AddFallingBlock:
+            m_TempFallingBlock.corner1 = GetMouseTileIdx();
+            break;
+        }
+    }
+}
+
+void LevelEditor::ReleasedLMB()
+{
+    switch (m_Mode)
+    {
+    case Mode::EditLevelScreen:
+        switch (m_EditLevelScreenMode)
+        {
+        case EditLevelScreenMode::AddFallingBlock:
+            TileIdx mouseTileIdx{ GetMouseTileIdx() };
+            mouseTileIdx.r += 1;
+            mouseTileIdx.c += 1;
+            m_TempFallingBlock.corner2 = mouseTileIdx;
+            float tileSize{ float(GameData::TILE_SIZE_PIX()) };
+            Rectf rect{ utils::GetTileAreaRect(m_TempFallingBlock.corner1, m_TempFallingBlock.corner2, tileSize) };
+            RectCornersTileIdx cornersTileIdx{ utils::GetRectCornersTileIdx(rect, tileSize) };
+            int minRow{ std::min(m_TempFallingBlock.corner1.r, m_TempFallingBlock.corner2.r) };
+            int maxRow{ std::max(m_TempFallingBlock.corner1.r, m_TempFallingBlock.corner2.r) };
+            int minCol{ std::min(m_TempFallingBlock.corner1.c, m_TempFallingBlock.corner2.c) };
+            int maxCol{ std::max(m_TempFallingBlock.corner1.c, m_TempFallingBlock.corner2.c) };
+            int rows{ maxRow - minRow };
+            int cols{ maxCol - minCol };
+            m_pCurLevelScreen->AddFallingBlock(cornersTileIdx.leftBottom, rows, cols);
             break;
         }
     }
@@ -410,4 +458,11 @@ void LevelEditor::PrintHeader(const std::string& text)
 {
     std::cout << "#################" << std::endl;
     std::cout << text << std::endl;
+}
+
+TileIdx LevelEditor::GetMouseTileIdx() const
+{
+    Vector2f mousePos{ InputManager::GetMouseInfo().pos };
+    Vector2f worldPos{ m_pCamera->GetWorldPos(mousePos) };
+    return utils::GetTileIdxByPos(worldPos, GameData::TILE_SIZE_PIX());
 }

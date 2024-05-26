@@ -31,6 +31,7 @@ private:
 
 	//Members
 	bool m_IsValid;
+	std::string m_StartRoom;
 	Camera* m_pCamera;
 	PhysicsBody* m_pPlayer;
 	LevelScreen* m_pCurLevelScreen;

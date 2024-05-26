@@ -20,6 +20,7 @@ public:
 	LevelScreen& operator=(LevelScreen&& other) noexcept;
 
 	void Draw() const;
+	static void DrawTiles(const std::vector<uint8_t>& data, int rows, int cols, const Vector2f& pos, const LevelScreen* ptr);
 	bool Update(float dt);
 	bool IsValid() const;
 	std::unordered_map<PhysicsBody*, LevelScreenGate&>& GetPhysicsBodiesOverlapingGates();
@@ -37,8 +38,11 @@ public:
 	void LoadData();
 	void SaveData();
 	static void LoadGates(std::ifstream& fStream, std::vector<LevelScreenGate>& gates);
-	static void WriteGates(std::stringstream& sStream, std::vector<LevelScreenGate>& gates);
+	void WriteGates(std::stringstream& sStream);
+	void LoadPhysicsBodies(std::ifstream& fStream);
+	void WritePhysicsBodies(std::stringstream& sStream);
 	void AddCrystal(Vector2f pos);
+	void AddFallingBlock(TileIdx leftBottomIdx, int rows, int cols);
 private:
 	//Functions
 	CollisionDir GetCollisionDir(const Rectf& bounds, bool checkXDir = true, bool checkYDir = true, const Vector2f& velDist = Vector2f{}, float time = 0.f, bool checkVelDir = false) const;
@@ -48,8 +52,9 @@ private:
 	bool IsCollisionTile(TileIdx tileIdx) const;
 	int PhysicsBodyOverlapsGate(PhysicsBody* pPhysicsBody);
 
-	int GetTileID(TileIdx tileIdx) const;
-	int GetTileID(int row, int col) const;
+	uint8_t GetTileID(TileIdx tileIdx) const;
+	uint8_t GetTileID(int row, int col) const;
+	std::vector<uint8_t> GetDataBlock(TileIdx leftBottomIdx, int rows, int cols) const;
 
 	//Members
 	bool m_IsValid;

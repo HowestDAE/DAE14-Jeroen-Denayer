@@ -6,7 +6,7 @@
 #include "AssetManager.h"
 
 Madeline::Madeline(const Point2f& pos, float width, float height)
-	: PhysicsBody(Rectf{pos.x, pos.y, width, height}, true)
+	: PhysicsBody(PhysicsBody::Type::Madeline, Rectf{pos.x, pos.y, width, height}, true)
 	, m_State{ State::Idle }
 	, m_pStateInfo{ nullptr }
 	, m_StateInfoArr{
@@ -43,7 +43,7 @@ Madeline::Madeline(const Point2f& pos, float width, float height)
 		, m_LedgeJumpTime{ 0.15f }
 		, m_MaxDistFromWallToWallJump{ 2.f }
 {
-	AddOverlapRect(Vector2f{ m_Bounds.left - m_MaxDistFromWallToWallJump, m_Bounds.bottom + m_Bounds.height / 3 }, m_Bounds.width + 2 * m_MaxDistFromWallToWallJump, m_Bounds.height / 3);
+	AddOverlapRect(Vector2f{ m_Bounds.left - m_MaxDistFromWallToWallJump, m_Bounds.bottom + m_Bounds.height / 3 }, m_Bounds.width + 2 * m_MaxDistFromWallToWallJump, m_Bounds.height / 3, PhysicsBody::Type::Level, true);
 
 	float groundJumpHeight = 3.5f;
 	float groundJumpTime = 0.35f;
@@ -154,7 +154,7 @@ Madeline::~Madeline()
 	}
 }
 
-void Madeline::Draw() const
+void Madeline::Draw(const LevelScreen* pLevelScreen) const
 {
 	//utils::SetColor(Color4f{ 1.f, 0.f, 0.f, 1.f });
 	//utils::FillRect(m_Bounds);
@@ -277,7 +277,6 @@ void Madeline::SetStateParameters(float dt)
 	float epsilon(0.5f); //in pixels
 	//Against the wall and grabbing
 	m_Grabbing = m_DistFromWall < epsilon && InputManager::IsGameActionTriggered(InputManager::GameAction::Grab);
-
 	if (!m_OnGround && !m_Grabbing)
 		m_AirTime += dt;
 	else
@@ -298,7 +297,6 @@ void Madeline::InitialiseState()
 {
 	int stateIdx{ int(m_State) };
 	m_pStateInfo = &m_StateInfoArr[stateIdx];
-
 	Vector2i inputDir{ InputManager::GetControllerInfo().leftJoystickDir };
 	ApplyMovementParameters(m_TargetVel.x, m_Vel.x, m_Acc.x, *m_pStateInfo->x, inputDir.x);
 	ApplyMovementParameters(m_TargetVel.y, m_Vel.y, m_Acc.y, *m_pStateInfo->y, inputDir.y);

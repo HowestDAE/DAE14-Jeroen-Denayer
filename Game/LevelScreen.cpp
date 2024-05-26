@@ -8,6 +8,7 @@
 #include "AssetManager.h"
 #include "GameData.h"
 #include "FileIO.h"
+#include "FallingBlock.h"
 
 LevelScreen::LevelScreen(const std::string& name, Level* pLevel)
 	: m_IsValid{ true }
@@ -76,43 +77,7 @@ void LevelScreen::Draw() const
 	for (const Vector2f& pos : m_CrystalPositions)
 		m_pCrystal->Draw(Point2f{ pos.x - offset.x, pos.y - offset.y });
 
-	//Draw tiles
-	for (int i{}; i < m_Data.size(); ++i)
-	{
-		TileIdx tileIdx{ utils::GetTileIdxFromIdx(i, m_Rows, m_Cols) };
-		int ID{ m_Data[i] };
-		float x{ float(tileIdx.c * m_TileSize) };
-		float y{ float(tileIdx.r * m_TileSize) };
-		if (ID >= 0 && ID < m_IdToTextureIdx.size())
-		{
-			int textureIdx{ m_IdToTextureIdx[ID]};
-			if (textureIdx >= 0 && textureIdx < m_pTextures.size())
-			{
-				Texture* pTexture{ m_pTextures[textureIdx] };
-				if (pTexture)
-				{
-					Rectf srcRect{ 0.f, 0.f, float(m_TileSize), float(m_TileSize) };
-					Rectf dstRect{ utils::GetTileRect(tileIdx, m_TileSize) };
-					pTexture->Draw(dstRect, srcRect);
-				}
-				else //Draw pink rectangle, texture not properly loaded
-				{
-					utils::SetColor(Color4f{ 1.f, 0.f, 1.f, 1.f });
-					utils::FillRect(x, y, float(m_TileSize), float(m_TileSize));
-				}
-			}
-			//else //Draw black rectangle, ID specifically mapped to invalid texture
-			//{
-			//	utils::SetColor(Color4f{ 0.f, 0.f, 0.f, 1.f });
-			//	utils::FillRect(x, y, float(m_TileSize), float(m_TileSize));
-			//}
-		}
-		else //Draw red rectangle, ID not mapped to textureID in m_IdToTextureIdx
-		{
-			utils::SetColor(Color4f{ 1.f, 0.f, 0.f, 1.f });
-			utils::FillRect(x, y, float(m_TileSize), float(m_TileSize));
-		}
-	}
+	LevelScreen::DrawTiles(m_Data, m_Rows, m_Cols, Vector2f{ 0.f, 0.f }, this);
 
 	//Draw debug grid lines
 	//utils::SetColor(Color4f{ 0.25f, 0.25f, 0.25f, 1.f });
@@ -129,7 +94,55 @@ void LevelScreen::Draw() const
 
 	//Draw PhysicsBodies
 	for (PhysicsBody* pPhysicsBody : m_pPhysicsBodies)
-		pPhysicsBody->Draw();
+	{
+		pPhysicsBody->Draw(this);
+		//Draw overlaprects
+		//utils::SetColor(Color4f{ 1.f, 0.f, 0.f, 1.f });
+		//for (Rectf& overlapRect : pPhysicsBody->m_OverlapRects)
+		//	utils::DrawRect(overlapRect, 2.f);
+	}
+}
+
+void LevelScreen::DrawTiles(const std::vector<uint8_t>& data, int rows, int cols, const Vector2f& pos, const LevelScreen* ptr)
+{
+	//Draw tiles
+	float tileSize{ float(ptr->m_TileSize) };
+	for (int i{}; i < data.size(); ++i)
+	{
+		TileIdx tileIdx{ utils::GetTileIdxFromIdx(i, rows, cols) };
+		int ID{ data[i] };
+		float x{ tileIdx.c * tileSize + pos.x };
+		float y{ tileIdx.r * tileSize + pos.y };
+		Rectf dstRect{ x, y, tileSize, tileSize };
+		if (ID >= 0 && ID < ptr->m_IdToTextureIdx.size())
+		{
+			int textureIdx{ ptr->m_IdToTextureIdx[ID] };
+			if (textureIdx >= 0 && textureIdx < ptr->m_pTextures.size())
+			{
+				Texture* pTexture{ ptr->m_pTextures[textureIdx] };
+				if (pTexture)
+				{
+					Rectf srcRect{ 0.f, 0.f, tileSize, tileSize };
+					pTexture->Draw(dstRect, srcRect);
+				}
+				else //Draw pink rectangle, texture not properly loaded
+				{
+					utils::SetColor(Color4f{ 1.f, 0.f, 1.f, 1.f });
+					utils::FillRect(dstRect);
+				}
+			}
+			//else //Draw black rectangle, ID specifically mapped to invalid texture
+			//{
+			//	utils::SetColor(Color4f{ 0.f, 0.f, 0.f, 1.f });
+			//	utils::FillRect(x, y, float(m_TileSize), float(m_TileSize));
+			//}
+		}
+		else //Draw red rectangle, ID not mapped to textureID in m_IdToTextureIdx
+		{
+			utils::SetColor(Color4f{ 1.f, 0.f, 0.f, 1.f });
+			utils::FillRect(dstRect);
+		}
+	}
 }
 
 bool LevelScreen::Update(float dt)
@@ -144,18 +157,43 @@ bool LevelScreen::Update(float dt)
 			it = m_pPhysicsBodies.erase(it);
 			continue;
 		}
+		//else if (!pPhysicsBody->m_Active)
+		//{
+		//	++it;
+		//	continue;
+		//}
 
 		pPhysicsBody->Update(dt); //Derived update
 		pPhysicsBody->UpdatePhysics(dt); //Base update
 		CollisionInfo bodyCI{ MovePhysicsRect(pPhysicsBody->m_Bounds, pPhysicsBody->m_Vel, dt) };
-		pPhysicsBody->CollisionInfoResponse(0, bodyCI);
+		if (bodyCI.collided)
+			pPhysicsBody->CollisionInfoResponse(0, bodyCI);
 
-		//Move all the other overlapRects connected to this PhysicsBody and check for collision
+		switch (pPhysicsBody->m_Type)
+		{
+		case PhysicsBody::Type::Madeline:
+			//Check if player overlaps a FallingBLock or dash crystal overlap rect
+			for (PhysicsBody* pFallingBlock : m_pPhysicsBodies)
+			{
+				if (pFallingBlock->m_Type == PhysicsBody::Type::FallingBlock &&
+					(utils::IsOverlapping(pPhysicsBody->m_Bounds, pFallingBlock->m_OverlapRects[0].rect)))
+					pFallingBlock->Activate(true);
+			//Check for solid collision between FallingBlock m_Bounds
+			//utils::IsOverlapping(pPhysicsBody->m_Bounds, pFallingBlock->m_Bounds
+			//Adapt DetectRectCollision to work with arbitary rect input not just tiles
+			}
+			break;
+		}
+
+		//Move all the other overlapRects connected to this PhysicsBody and check for collision with level
 		for (int i{}; i < pPhysicsBody->m_OverlapRects.size(); i++)
 		{
-			Rectf& overlapRect{ pPhysicsBody->m_OverlapRects[i] };
-			overlapRect += bodyCI.movedDist;
-			CollisionInfo overlapCI{ DetectRectCollision(overlapRect) };
+			PhysicsBody::OverlapRectInfo& overlapRect{ pPhysicsBody->m_OverlapRects[i] };
+			Rectf& rect{ overlapRect.rect };
+			rect += bodyCI.movedDist;
+			CollisionInfo overlapCI{ DetectRectCollision(rect) };
+			
+			//if (overlapCI.collided)
 			pPhysicsBody->CollisionInfoResponse(i + 1, overlapCI); // + 1 because 0 is ALWAYS the collision body
 		}
 
@@ -319,6 +357,7 @@ void LevelScreen::LoadData()
 		AssetManager::GetTextures(textureNames, m_pTextures);
 		FileIO::LoadIntArr(fileStream, m_IdToTextureIdx);
 		FileIO::LoadVector2fArr(fileStream, m_CrystalPositions);
+		LoadPhysicsBodies(fileStream);
 	}
 	else
 	{
@@ -330,8 +369,8 @@ void LevelScreen::LoadData()
 void LevelScreen::SaveData()
 {
 	std::stringstream stream;
-	stream << "Yeet: ";
-	LevelScreen::WriteGates(stream, m_Gates);
+	stream << "Gates: ";
+	WriteGates(stream);
 	stream << "\n" << "TextureNames: ";
 	std::vector<std::string> textureNames{};
 	for (Texture* pTexture : m_pTextures)
@@ -341,6 +380,8 @@ void LevelScreen::SaveData()
 	FileIO::WriteIntArr(stream, m_IdToTextureIdx);
 	stream << "\n" << "CrystalPositions: ";
 	FileIO::WriteVector2fArr(stream, m_CrystalPositions);
+	stream << "\n" << "PhysicsBodies: ";
+	WritePhysicsBodies(stream);
 
 	std::ofstream oStream{ FileIO::WriteTxtFile(m_Name, FileIO::Dir::LevelScreenData) };
 	oStream << stream.str();
@@ -361,19 +402,98 @@ void LevelScreen::LoadGates(std::ifstream& fStream, std::vector<LevelScreenGate>
 	}
 }
 
-void LevelScreen::WriteGates(std::stringstream& sStream, std::vector<LevelScreenGate>& gates)
+void LevelScreen::WriteGates(std::stringstream& sStream)
 {
-	for (int i{}; i < gates.size(); ++i)
+	for (int i{}; i < m_Gates.size(); ++i)
 	{
 		if (i != 0)
 			sStream << " ";
-		sStream << gates[i].String();
+		sStream << m_Gates[i].String();
+	}
+}
+
+void LevelScreen::LoadPhysicsBodies(std::ifstream& fStream)
+{
+	std::string line{};
+	std::getline(fStream, line);
+	std::stringstream sstream{ line };
+	std::string s{};
+	sstream >> s; //extract name
+	while (sstream.rdbuf()->in_avail()) //nr characters it can still read
+	{
+		std::string sPhysicsBody{};
+		sstream >> sPhysicsBody;
+		std::stringstream streamPhysicsBody{ sPhysicsBody };
+		std::string value{};
+		std::getline(streamPhysicsBody, value, ',');
+		PhysicsBody::Type type{ PhysicsBody::Type(std::stoi(value)) };
+		switch (type)
+		{
+		case PhysicsBody::Type::Madeline:
+			break;
+		case PhysicsBody::Type::FallingBlock:
+			std::getline(streamPhysicsBody, value, ',');
+			int startRow{ std::stoi(value) };
+			std::getline(streamPhysicsBody, value, ',');
+			int startCol{ std::stoi(value) };
+			std::getline(streamPhysicsBody, value, ',');
+			int rows{ std::stoi(value) };
+			std::getline(streamPhysicsBody, value, ',');
+			int cols{ std::stoi(value) };
+			TileIdx leftBottomIdx{ startRow, startCol };
+			AddFallingBlock(leftBottomIdx, rows, cols);
+			break;
+		}
+	}
+
+
+	//for (int i{}; i < pPhysicsBodies.size(); ++i)
+	//{
+	//	PhysicsBody* pPhysicsBody{ pPhysicsBodies[i] };
+	//}
+}
+
+void LevelScreen::WritePhysicsBodies(std::stringstream& sStream)
+{
+	for (int i{}; i < m_pPhysicsBodies.size(); ++i)
+	{
+		if (i != 0)
+			sStream << " ";
+
+		PhysicsBody* pPhysicsBody{ m_pPhysicsBodies[i] };
+		switch (pPhysicsBody->GetType())
+		{
+		case PhysicsBody::Type::Madeline:
+			break;
+		case PhysicsBody::Type::FallingBlock:
+			FallingBlock* pFallingBlock{ static_cast<FallingBlock*>(pPhysicsBody) };
+			sStream << pFallingBlock->String();
+			break;
+		}
 	}
 }
 
 void LevelScreen::AddCrystal(Vector2f pos)
 {
 	m_CrystalPositions.push_back(pos);
+}
+
+void LevelScreen::AddFallingBlock(TileIdx leftBottomIdx, int rows, int cols)
+{
+	//Create data
+	std::vector<uint8_t> data(size_t(rows * cols));
+	for (int i{}; i < data.capacity(); ++i)
+	{
+		TileIdx tileIdx{ utils::GetTileIdxFromIdx(i, rows, cols) };
+		tileIdx.r += leftBottomIdx.r;
+		tileIdx.c += leftBottomIdx.c;
+		data[i] = GetTileID(tileIdx);
+		int dataIdx{ utils::GetIdxFromTileIdx(tileIdx, m_Rows, m_Cols) };
+		//Set tile to 0, because the fallingBlock is taking over these tiles
+		m_Data[dataIdx] = 0;
+	}
+	FallingBlock* pFallingBlock{ new FallingBlock{leftBottomIdx, rows, cols, data} };
+	AddPhysicsBody(pFallingBlock);
 }
 
 
@@ -537,17 +657,30 @@ int LevelScreen::PhysicsBodyOverlapsGate(PhysicsBody* pPhysicsBody)
 //##########################
 //Utility Functions
 //##########################
-int LevelScreen::GetTileID(TileIdx tileIdx) const
+uint8_t LevelScreen::GetTileID(TileIdx tileIdx) const
 {
 	return GetTileID(tileIdx.r, tileIdx.c);
 }
 
-int LevelScreen::GetTileID(int row, int col) const
+uint8_t LevelScreen::GetTileID(int row, int col) const
 {
-	int tileID{ -1 }; //invalid tileID
+	uint8_t tileID{ uint8_t(-1) }; //invalid tileID
 	int idx{ utils::GetIdxFromTileIdx(TileIdx{ row, col }, m_Rows, m_Cols) };
 	if (idx >= 0 && idx < m_Rows * m_Cols)
 		tileID = m_Data[idx];
 
 	return tileID;
+}
+
+std::vector<uint8_t> LevelScreen::GetDataBlock(TileIdx leftBottomIdx, int rows, int cols) const
+{
+	std::vector<uint8_t> data(size_t(rows * cols));
+	for (int i{}; i < data.capacity(); ++i)
+	{
+		TileIdx tileIdx{ utils::GetTileIdxFromIdx(i, rows, cols) };
+		tileIdx.r += leftBottomIdx.r;
+		tileIdx.c += leftBottomIdx.c;
+		data[i] = GetTileID(tileIdx);
+	}
+	return data;
 }

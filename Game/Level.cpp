@@ -9,13 +9,13 @@
 
 Level::Level()
 	: m_IsValid{ true }
-	, m_StartRoom{ "Room4" }
+	, m_StartRoom{ "Room1" }
 	, m_pCamera{ new Camera() }
 	, m_pPlayer{ nullptr }
 	, m_pCurLevelScreen{ nullptr }
 	, m_pNextLevelScreen{ nullptr }
 {
-	LoadLevel(m_StartRoom); //hardcoded 1st level atm
+	LoadLevel(m_StartRoom);
 	m_IsValid = m_pCurLevelScreen->IsValid();
 
 	//Create the player Madeline

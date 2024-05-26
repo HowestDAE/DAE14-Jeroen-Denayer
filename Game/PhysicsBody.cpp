@@ -1,14 +1,16 @@
 #include "pch.h"
 #include "PhysicsBody.h"
 
-PhysicsBody::PhysicsBody(const Rectf& bounds, bool canDie)
-	: m_Bounds{ bounds }
+PhysicsBody::PhysicsBody(Type type, const Rectf& bounds, bool canDie)
+	: m_Type{ type }
+	, m_Bounds{ bounds }
 	, m_Vel{ Vector2f{} }
 	, m_TargetVel{ Vector2f{} }
 	, m_Acc{ Vector2f{} }
-	, m_OverlapRects{ std::vector<Rectf>{} }
+	, m_OverlapRects{ std::vector<OverlapRectInfo>{} }
 	, m_CanDie{ canDie }
 	, m_IsDead{ false }
+	, m_Active{ true }
 {
 }
 
@@ -23,6 +25,9 @@ void PhysicsBody::UpdatePhysics(float dt)
 
 void PhysicsBody::UpdateAxis(float dt, float& targetVel, float& vel, float& acc)
 {
+	if (!m_Active)
+		return;
+
 	//Point acc in direction of targetVel
 	if (targetVel > 0.f || (targetVel == 0.f && vel < 0.f))
 		acc = std::abs(acc);
@@ -34,9 +39,9 @@ void PhysicsBody::UpdateAxis(float dt, float& targetVel, float& vel, float& acc)
 		vel = targetVel;
 }
 
-void PhysicsBody::AddOverlapRect(const Vector2f& offset, float width, float height)
+void PhysicsBody::AddOverlapRect(const Vector2f& offset, float width, float height, Type allowedPhysicsBodyCollision, bool detailedCollisionInfo)
 {
-	m_OverlapRects.push_back(Rectf{ offset.x, offset.y, width, height });
+	m_OverlapRects.push_back(OverlapRectInfo{ Rectf{ offset.x, offset.y, width, height }, allowedPhysicsBodyCollision, detailedCollisionInfo });
 }
 
 void PhysicsBody::SetPosition(const Point2f& pos)
@@ -44,8 +49,9 @@ void PhysicsBody::SetPosition(const Point2f& pos)
 	Point2f origPos{ m_Bounds.left, m_Bounds.bottom };
 	m_Bounds.left = pos.x;
 	m_Bounds.bottom = pos.y;
-	for (Rectf& rect : m_OverlapRects)
+	for (OverlapRectInfo& overlapRect : m_OverlapRects)
 	{
+		Rectf& rect{ overlapRect.rect };
 		Point2f rectOffset{ rect.left - origPos.x, rect.bottom - origPos.y };
 		rect.left = m_Bounds.left + rectOffset.x;
 		rect.bottom = m_Bounds.bottom + rectOffset.y;
@@ -72,4 +78,14 @@ bool PhysicsBody::IsDead() const
 void PhysicsBody::SetIsDead(bool isDead)
 {
 	m_IsDead = isDead;
+}
+
+void PhysicsBody::Activate(bool activate)
+{
+	m_Active = activate;
+}
+
+PhysicsBody::Type PhysicsBody::GetType() const
+{
+	return m_Type;
 }

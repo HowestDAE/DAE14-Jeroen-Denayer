@@ -5,36 +5,54 @@
 class PhysicsBody
 {
 public:
-	explicit PhysicsBody(const Rectf& bounds, bool canDie = false);
+	enum class Type
+	{
+		Madeline, FallingBlock, Level, DashCrystal
+	};
+
+	explicit PhysicsBody(Type type, const Rectf& bounds, bool canDie = false);
 	virtual ~PhysicsBody() = default;
 	PhysicsBody(const PhysicsBody& other) = delete;
 	PhysicsBody& operator=(const PhysicsBody& other) = delete;
 	PhysicsBody(PhysicsBody&& other) = delete;
 	PhysicsBody& operator=(PhysicsBody&& other) = delete;
 
-	virtual void Draw() const = 0;
+	virtual void Draw(const LevelScreen* pLevelScreen = nullptr) const = 0;
 	virtual void Update(float dt) = 0;
 	virtual void CollisionInfoResponse(int idx, const CollisionInfo& ci) = 0;
 
 	void UpdatePhysics(float dt);
-	void AddOverlapRect(const Vector2f& offset, float width, float height);
+	void AddOverlapRect(const Vector2f& offset, float width, float height, Type allowedPhysicsBodyCollision, bool detailedCollisionInfo);
 	void SetPosition(const Point2f& pos);
 	void SetMovement(const Vector2f& targetVel, const Vector2f& vel, const Vector2f& acc);
 	Rectf GetBounds() const;
 	bool IsDead() const;
 	void SetIsDead(bool isDead);
+	void Activate(bool activate);
+	Type GetType() const;
+
+	struct OverlapRectInfo
+	{
+		Rectf rect;
+		Type AllowedPhysicsBodyCollisionType;
+		bool detailedCollisionInfo;
+	};
 protected:
+	Type m_Type;
+	std::vector<Type> m_CollisionTypes;
 	Rectf m_Bounds;
 	Vector2f m_Vel;
 	Vector2f m_TargetVel;
 	Vector2f m_Acc;
-	std::vector<Rectf> m_OverlapRects;
+	std::vector<OverlapRectInfo> m_OverlapRects;
 	bool m_CanDie;
 	bool m_IsDead;
+	bool m_Active;
 private:
 	//Functions
 	void UpdateAxis(float dt, float& targetVel, float& vel, float& acc);
 
+	friend void LevelScreen::Draw() const;
 	friend bool LevelScreen::Update(float dt);
 	friend void LevelScreen::AddPhysicsBodyThroughGate(PhysicsBody* pPhysicsBody, const LevelScreenGate& gate);
 };

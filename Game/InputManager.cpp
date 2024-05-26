@@ -108,8 +108,6 @@ void InputManager::IUpdate()
 		float axis{ float(axisSint16) / std::numeric_limits<Sint16>::max() };
 		if (std::abs(axis) > deadZoneRightTrigger)
 			m_GameActions.emplace(GameAction::Grab);
-		else
-			m_GameActions.erase(GameAction::Grab);
 	}
 
 	TriggerCallbacks();
@@ -120,13 +118,18 @@ void InputManager::IReset()
 	m_ControllerInfo.leftJoystickDir.x = 0;
 	m_ControllerInfo.leftJoystickDir.y = 0;
 
+	m_MouseInfo.moving = false;
 	m_MouseInfo.dragDist = Vector2f{};
 	m_MouseInfo.scrollDir = 0;
 
 	m_MouseEvents.erase(MouseEvent::ClickedLMB);
+	m_MouseEvents.erase(MouseEvent::ReleasedLMB);
 	m_MouseEvents.erase(MouseEvent::MovingLMB);
 	m_MouseEvents.erase(MouseEvent::ScrollingMMB);
 	m_MouseEvents.erase(MouseEvent::DraggingMMB);
+
+	m_GameActions.erase(GameAction::Jump);
+	m_GameActions.erase(GameAction::Grab);
 }
 
 bool InputManager::IHandleEvent(SDL_Event& e)
@@ -227,6 +230,9 @@ void InputManager::ProcessKeyEvent(const SDL_KeyboardEvent& e, bool keyDown)
 	case SDLK_s:
 		AddRemoveKey(Key::S, keyDown);
 		break;
+	case SDLK_b:
+		AddRemoveKey(Key::B, keyDown);
+		break;
 	}
 }
 
@@ -236,12 +242,17 @@ void InputManager::ProcessMouseMotionEvent(const SDL_MouseMotionEvent& e)
 	m_MouseInfo.pos.x = float(e.x);
 	m_MouseInfo.pos.y = float(e.y);
 	m_MouseEvents.emplace(MouseEvent::MovingLMB);
-	if (IsMouseEventTriggered(MouseEvent::ClickedMMB))
-	{
-		m_MouseInfo.dragDist.x = m_MouseInfo.pos.x - prevMousePos.x;
-		m_MouseInfo.dragDist.y = m_MouseInfo.pos.y - prevMousePos.y;
+
+	m_MouseInfo.dragDist.x = m_MouseInfo.pos.x - prevMousePos.x;
+	m_MouseInfo.dragDist.y = m_MouseInfo.pos.y - prevMousePos.y;
+
+	m_MouseInfo.moving = true;
+
+	if (m_MouseInfo.pressingLMB)
+		m_MouseEvents.emplace(MouseEvent::DraggingLMB);
+
+	if (m_MouseInfo.pressingMMB)
 		m_MouseEvents.emplace(MouseEvent::DraggingMMB);
-	}
 }
 
 void InputManager::ProcessMouseButtonEvent(const SDL_MouseButtonEvent& e, bool buttonDown)
@@ -256,15 +267,23 @@ void InputManager::ProcessMouseButtonEvent(const SDL_MouseButtonEvent& e, bool b
 		}
 		else
 		{
+			if (m_MouseInfo.pressingLMB)
+				m_MouseEvents.emplace(MouseEvent::ReleasedLMB);
 			m_MouseInfo.pressingLMB = false;
 			m_MouseEvents.erase(MouseEvent::ClickedLMB);
 		}
 		break;
 	case SDL_BUTTON_MIDDLE:
 		if (buttonDown)
+		{
+			m_MouseInfo.pressingMMB = true;
 			m_MouseEvents.emplace(MouseEvent::ClickedMMB);
+		}
 		else
+		{
+			m_MouseInfo.pressingMMB = false;
 			m_MouseEvents.erase(MouseEvent::ClickedMMB);
+		}
 		break;
 	}
 }

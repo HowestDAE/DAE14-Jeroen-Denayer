@@ -27,12 +27,19 @@ private:
 
 	enum class EditLevelScreenMode
 	{
-		Default, AddCrystal
+		Default, AddCrystal, AddFallingBlock
+	};
+
+	struct FallingBlockData
+	{
+		TileIdx corner1;
+		TileIdx corner2;
 	};
 
 	//Callback functions
 	void KeyPressed();
 	void ClickedLMB();
+	void ReleasedLMB();
 	void ScrollingMMB();
 	void DraggingMMB();
 	void EditCurrentMode();
@@ -53,6 +60,7 @@ private:
 	bool IsFileOpen(std::ofstream& file);
 	void CloseFile(std::ofstream&& file);
 	void PrintHeader(const std::string& text);
+	TileIdx GetMouseTileIdx() const;
 
 	//Members
 	Vector2f m_MousePos;
@@ -67,5 +75,6 @@ private:
 	Level* m_pCurLevel;
 	LevelScreen* m_pCurLevelScreen;
 	Texture* m_PreviewTexture;
+	FallingBlockData m_TempFallingBlock;
 };
 
