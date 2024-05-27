@@ -10,7 +10,7 @@ public:
 		Madeline, FallingBlock, Level, DashCrystal
 	};
 
-	explicit PhysicsBody(Type type, const Rectf& bounds, bool canDie = false);
+	explicit PhysicsBody(Type type, const Rectf& bounds, bool canDie = false, bool alwaysReceiveCollInfo = false);
 	virtual ~PhysicsBody() = default;
 	PhysicsBody(const PhysicsBody& other) = delete;
 	PhysicsBody& operator=(const PhysicsBody& other) = delete;
@@ -20,22 +20,23 @@ public:
 	virtual void Draw(const LevelScreen* pLevelScreen = nullptr) const = 0;
 	virtual void Update(float dt) = 0;
 	virtual void CollisionInfoResponse(int idx, const CollisionInfo& ci) = 0;
+	virtual std::string String() const;
 
 	void UpdatePhysics(float dt);
-	void AddOverlapRect(const Vector2f& offset, float width, float height, Type allowedPhysicsBodyCollision, bool detailedCollisionInfo);
+	void AddOverlapRect(const Vector2f& offset, float width, float height, Type allowedPhysicsBodyCollision, bool alwaysReceiveCollInfo);
 	void SetPosition(const Point2f& pos);
 	void SetMovement(const Vector2f& targetVel, const Vector2f& vel, const Vector2f& acc);
 	Rectf GetBounds() const;
 	bool IsDead() const;
 	void SetIsDead(bool isDead);
-	void Activate(bool activate);
 	Type GetType() const;
+	void Activate(bool activate);
 
 	struct OverlapRectInfo
 	{
 		Rectf rect;
 		Type AllowedPhysicsBodyCollisionType;
-		bool detailedCollisionInfo;
+		bool alwaysReceiveCollInfo;
 	};
 protected:
 	Type m_Type;
@@ -48,6 +49,7 @@ protected:
 	bool m_CanDie;
 	bool m_IsDead;
 	bool m_Active;
+	bool m_AlwaysReceiveCollInfo;
 private:
 	//Functions
 	void UpdateAxis(float dt, float& targetVel, float& vel, float& acc);

@@ -18,7 +18,7 @@ public:
 	LevelEditor& operator=(LevelEditor&& other) = delete;
 
 	void Draw() const;
-	void Update(float dt);
+	bool Update(float dt);
 private:
 	enum class Mode
 	{
@@ -27,7 +27,7 @@ private:
 
 	enum class EditLevelScreenMode
 	{
-		Default, AddCrystal, AddFallingBlock
+		Default, AddCrystal, AddFallingBlock, AddDashCrystal
 	};
 
 	struct FallingBlockData
@@ -63,6 +63,7 @@ private:
 	TileIdx GetMouseTileIdx() const;
 
 	//Members
+	bool m_Active;
 	Vector2f m_MousePos;
 	Mode m_DefaultMode;
 	Mode m_Mode;

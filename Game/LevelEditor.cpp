@@ -15,13 +15,14 @@
 #include "FallingBlock.h"
 
 LevelEditor::LevelEditor()
-    : m_MousePos{ Vector2f{} }
+    : m_Active{ true }
+    , m_MousePos{ Vector2f{} }
     , m_DefaultMode{ Mode::ModeSelect }
     , m_Mode{}
     , m_SelectedMode{}
     , m_ModeNames{ std::vector<std::string>{"ModeSelect", "RunLevel", "CreateLevel", "EditLevel", "CreateLevelScreen", "EditLevelScreen"} }
     , m_EditLevelScreenMode{ EditLevelScreenMode::Default }
-    , m_EditLevelScreenModeNames{ std::vector<std::string>{"Default", "AddCrystal", "AddFallingBlock"} }
+    , m_EditLevelScreenModeNames{ std::vector<std::string>{"Default", "AddCrystal", "AddFallingBlock", "AddDashCrystal"}}
     , m_pCamera{ new Camera() }
     , m_pCurLevel{ nullptr }
     , m_pCurLevelScreen{ nullptr }
@@ -98,6 +99,14 @@ void LevelEditor::Draw() const
             }
             break;
         }
+        case EditLevelScreenMode::AddDashCrystal:
+        {
+            Vector2f pos{ m_pCamera->GetWorldPos(m_MousePos) };
+            pos -= Vector2f{ m_PreviewTexture->GetWidth() / 2, m_PreviewTexture->GetHeight() / 2 };
+            m_PreviewTexture->Draw(Point2f{ pos.x, pos.y });
+            break;
+            break;
+        }
         }
         m_pCamera->Reset();
         break;
@@ -105,14 +114,11 @@ void LevelEditor::Draw() const
     }
 }
 
-void LevelEditor::Update(float dt)
+bool LevelEditor::Update(float dt)
 {
     m_MousePos = InputManager::GetMouseInfo().pos;
-    switch (m_Mode)
-    {
-    case Mode::EditLevelScreen:
-        break;
-    }
+
+    return m_Active;
 }
 
 void LevelEditor::KeyPressed()
@@ -122,6 +128,11 @@ void LevelEditor::KeyPressed()
     case Mode::ModeSelect:
         if (InputManager::IsKeyPressed(InputManager::Key::Enter))
             EnterSelectedMode();
+        else if (InputManager::IsKeyPressed(InputManager::Key::Escape))
+        {
+            m_Active = false;
+            return;
+        }
         break;
     case Mode::EditLevelScreen:
         if (InputManager::IsKeyPressed(InputManager::Key::Escape))
@@ -140,6 +151,8 @@ void LevelEditor::KeyPressed()
             SetEditLevelScreenMode(EditLevelScreenMode::AddCrystal);
         else if (InputManager::IsKeyPressed(InputManager::Key::B))
             SetEditLevelScreenMode(EditLevelScreenMode::AddFallingBlock);
+        else if (InputManager::IsKeyPressed(InputManager::Key::D))
+            SetEditLevelScreenMode(EditLevelScreenMode::AddDashCrystal);
         break;
     }   
 }
@@ -163,6 +176,9 @@ void LevelEditor::ClickedLMB()
             break;
         case EditLevelScreenMode::AddFallingBlock:
             m_TempFallingBlock.corner1 = GetMouseTileIdx();
+            break;
+        case EditLevelScreenMode::AddDashCrystal:
+            m_pCurLevelScreen->AddDashCrystal(m_pCamera->GetWorldPos(m_MousePos));
             break;
         }
     }
@@ -379,6 +395,9 @@ void LevelEditor::SelectLevelScreenToEdit()
 
 void LevelEditor::SetSelectedMode(Mode mode, bool enter)
 {
+    if (!m_Active)
+        return;
+
     m_SelectedMode = mode;
     if (enter)
         EnterSelectedMode();
@@ -408,7 +427,6 @@ void LevelEditor::EnterSelectedMode()
         SetEditLevelScreenMode(EditLevelScreenMode::Default);
         if (!m_pCurLevelScreen)
             SelectLevelScreenToEdit();
-        m_PreviewTexture = AssetManager::GetTexture("Crystal");
         break;
     }
 }
@@ -420,6 +438,18 @@ void LevelEditor::SetEditLevelScreenMode(EditLevelScreenMode mode)
     m_EditLevelScreenMode = mode;
     int idx{ int(m_EditLevelScreenMode) };
     std::cout << "EditLevelScreen mode changed to: " << m_EditLevelScreenModeNames[idx] << std::endl;
+
+    switch (m_EditLevelScreenMode)
+    {
+    case EditLevelScreenMode::AddCrystal:
+        AssetManager::RemoveTexture(m_PreviewTexture);
+        m_PreviewTexture = AssetManager::GetTexture("Crystal");
+        break;
+    case EditLevelScreenMode::AddDashCrystal:
+        AssetManager::RemoveTexture(m_PreviewTexture);
+        m_PreviewTexture = AssetManager::GetTexture("DashCrystal");
+        break;
+    }
 }
 
 void LevelEditor::CreateDirIfDoesntExist(const std::string& dir)

@@ -7,7 +7,7 @@ Button::Button(const std::string& text, Vector2f pos, float height, std::functio
 	: m_Pos{ pos }
 	, m_Width{}
 	, m_Height{ height }
-	, m_pText{ AssetManager::GetTextureFromText(text, "DIN-Light.otf", height, Color4f{0.85f, 0.85f, 1.f, 1.f}) }
+	, m_pText{ AssetManager::GetTextureFromText(text, "HussarBoldWebEdition-xq5O.otf", height, Color4f{0.85f, 0.85f, 1.f, 1.f}) }
 	, m_pLogo{ nullptr }
 	, m_Callback{ callback }
 	, m_Hovered{ false }

@@ -20,7 +20,7 @@ Game::Game( const Window& window )
 	Rectf viewport{ GetViewPort() };
 
 	CreateMainMenu();
-	GameData::Init(viewport, GameData::Mode::PlayLevel);
+	GameData::Init(viewport, GameData::Mode::Menu);
 
 	switch (GameData::GetMode())
 	{
@@ -68,7 +68,9 @@ bool Game::Update( float elapsedSec )
 		m_pActiveLvl->Update(elapsedSec);
 		break;
 	case GameData::Mode::RunEditor:
-		m_pLevelEditor->Update(elapsedSec);
+		bool update = m_pLevelEditor->Update(elapsedSec);
+		if (!update)
+			GoToMainMenu();
 		break;
 	}
 
@@ -150,12 +152,17 @@ void Game::GoToMainMenu()
 void Game::CreateMainMenu()
 {
 	std::function<void(void)> fPlay = std::bind(&Game::Play, this);
-	Button playButton("Play", Vector2f{ 100.f, 500.f }, 50.f, fPlay);
+	Button playButton("Play", Vector2f{ 100.f, 400.f }, 50.f, fPlay);
 	playButton.SetLogo("Play");
 	m_MainMenu.AddButton(std::move(playButton));
 
+	std::function<void(void)> fEditor = std::bind(&Game::RunEditor, this);
+	Button editorButton("Editor", Vector2f{ 100.f, 330.f }, 50.f, fEditor);
+	editorButton.SetLogo("Editor");
+	m_MainMenu.AddButton(std::move(editorButton));
+
 	std::function<void(void)> fQuit = std::bind(&Game::Quit, this);
-	Button quitButton("Quit", Vector2f{ 100.f, 400.f }, 50.f, fQuit);
+	Button quitButton("Quit", Vector2f{ 100.f, 260.f }, 50.f, fQuit);
 	quitButton.SetLogo("Return");
 	m_MainMenu.AddButton(std::move(quitButton));
 }

@@ -9,6 +9,8 @@
 #include "GameData.h"
 #include "FileIO.h"
 #include "FallingBlock.h"
+#include "DashCrystal.h"
+#include "Madeline.h"
 
 LevelScreen::LevelScreen(const std::string& name, Level* pLevel)
 	: m_IsValid{ true }
@@ -97,9 +99,10 @@ void LevelScreen::Draw() const
 	{
 		pPhysicsBody->Draw(this);
 		//Draw overlaprects
-		//utils::SetColor(Color4f{ 1.f, 0.f, 0.f, 1.f });
-		//for (Rectf& overlapRect : pPhysicsBody->m_OverlapRects)
-		//	utils::DrawRect(overlapRect, 2.f);
+		utils::SetColor(Color4f{ 1.f, 0.f, 0.f, 1.f });
+		utils::DrawRect(pPhysicsBody->m_Bounds, 2.f);
+		for (PhysicsBody::OverlapRectInfo& overlapRect : pPhysicsBody->m_OverlapRects)
+			utils::DrawRect(overlapRect.rect, 2.f);
 	}
 }
 
@@ -166,18 +169,33 @@ bool LevelScreen::Update(float dt)
 		pPhysicsBody->Update(dt); //Derived update
 		pPhysicsBody->UpdatePhysics(dt); //Base update
 		CollisionInfo bodyCI{ MovePhysicsRect(pPhysicsBody->m_Bounds, pPhysicsBody->m_Vel, dt) };
-		if (bodyCI.collided)
+		
+		if (pPhysicsBody->m_AlwaysReceiveCollInfo || bodyCI.collided)
 			pPhysicsBody->CollisionInfoResponse(0, bodyCI);
 
 		switch (pPhysicsBody->m_Type)
 		{
 		case PhysicsBody::Type::Madeline:
 			//Check if player overlaps a FallingBLock or dash crystal overlap rect
-			for (PhysicsBody* pFallingBlock : m_pPhysicsBodies)
+			for (PhysicsBody* pPhysicsBodyOther : m_pPhysicsBodies)
 			{
-				if (pFallingBlock->m_Type == PhysicsBody::Type::FallingBlock &&
-					(utils::IsOverlapping(pPhysicsBody->m_Bounds, pFallingBlock->m_OverlapRects[0].rect)))
-					pFallingBlock->Activate(true);
+				switch (pPhysicsBodyOther->m_Type)
+				{
+				case PhysicsBody::Type::FallingBlock:
+					if (utils::IsOverlapping(pPhysicsBody->m_Bounds, pPhysicsBodyOther->m_OverlapRects[0].rect))
+						pPhysicsBodyOther->Activate(true);
+					break;
+				case PhysicsBody::Type::DashCrystal:
+					if (pPhysicsBodyOther->m_Active && utils::IsOverlapping(pPhysicsBody->m_Bounds, pPhysicsBodyOther->m_Bounds))
+					{
+						DashCrystal* pDashCrystal{ static_cast<DashCrystal*>(pPhysicsBodyOther) };
+						pDashCrystal->CollisionInfoResponse(0, CollisionInfo{});
+						Madeline* pMadeline{ static_cast<Madeline*>(pPhysicsBody) };
+						pMadeline->ResetDash();
+					}
+					break;
+				}
+
 			//Check for solid collision between FallingBlock m_Bounds
 			//utils::IsOverlapping(pPhysicsBody->m_Bounds, pFallingBlock->m_Bounds
 			//Adapt DetectRectCollision to work with arbitary rect input not just tiles
@@ -193,8 +211,8 @@ bool LevelScreen::Update(float dt)
 			rect += bodyCI.movedDist;
 			CollisionInfo overlapCI{ DetectRectCollision(rect) };
 			
-			//if (overlapCI.collided)
-			pPhysicsBody->CollisionInfoResponse(i + 1, overlapCI); // + 1 because 0 is ALWAYS the collision body
+			if (overlapRect.alwaysReceiveCollInfo || overlapCI.collided)
+				pPhysicsBody->CollisionInfoResponse(i + 1, overlapCI); // + 1 because 0 is ALWAYS the collision body
 		}
 
 		//Check collision with crystals
@@ -432,6 +450,7 @@ void LevelScreen::LoadPhysicsBodies(std::ifstream& fStream)
 		case PhysicsBody::Type::Madeline:
 			break;
 		case PhysicsBody::Type::FallingBlock:
+		{
 			std::getline(streamPhysicsBody, value, ',');
 			int startRow{ std::stoi(value) };
 			std::getline(streamPhysicsBody, value, ',');
@@ -443,6 +462,16 @@ void LevelScreen::LoadPhysicsBodies(std::ifstream& fStream)
 			TileIdx leftBottomIdx{ startRow, startCol };
 			AddFallingBlock(leftBottomIdx, rows, cols);
 			break;
+		}
+		case PhysicsBody::Type::DashCrystal:
+		{
+			std::getline(streamPhysicsBody, value, ',');
+			float left{ std::stof(value) };
+			std::getline(streamPhysicsBody, value, ',');
+			float bottom{ std::stof(value) };
+			AddDashCrystal(Vector2f{ left, bottom });
+			break;
+		}
 		}
 	}
 
@@ -461,15 +490,7 @@ void LevelScreen::WritePhysicsBodies(std::stringstream& sStream)
 			sStream << " ";
 
 		PhysicsBody* pPhysicsBody{ m_pPhysicsBodies[i] };
-		switch (pPhysicsBody->GetType())
-		{
-		case PhysicsBody::Type::Madeline:
-			break;
-		case PhysicsBody::Type::FallingBlock:
-			FallingBlock* pFallingBlock{ static_cast<FallingBlock*>(pPhysicsBody) };
-			sStream << pFallingBlock->String();
-			break;
-		}
+		sStream << pPhysicsBody->String();
 	}
 }
 
@@ -494,6 +515,12 @@ void LevelScreen::AddFallingBlock(TileIdx leftBottomIdx, int rows, int cols)
 	}
 	FallingBlock* pFallingBlock{ new FallingBlock{leftBottomIdx, rows, cols, data} };
 	AddPhysicsBody(pFallingBlock);
+}
+
+void LevelScreen::AddDashCrystal(Vector2f pos)
+{
+	DashCrystal* pDashCrystal{ new DashCrystal(Vector2f{pos.x, pos.y}) };
+	AddPhysicsBody(pDashCrystal);
 }
 
 

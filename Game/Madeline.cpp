@@ -6,8 +6,9 @@
 #include "AssetManager.h"
 
 Madeline::Madeline(const Point2f& pos, float width, float height)
-	: PhysicsBody(PhysicsBody::Type::Madeline, Rectf{pos.x, pos.y, width, height}, true)
+	: PhysicsBody(PhysicsBody::Type::Madeline, Rectf{pos.x, pos.y, width, height}, true, true)
 	, m_State{ State::Idle }
+	, m_PrevState{ State::Idle }
 	, m_pStateInfo{ nullptr }
 	, m_StateInfoArr{
 		std::vector<StateInfo>{
@@ -156,9 +157,6 @@ Madeline::~Madeline()
 
 void Madeline::Draw(const LevelScreen* pLevelScreen) const
 {
-	//utils::SetColor(Color4f{ 1.f, 0.f, 0.f, 1.f });
-	//utils::FillRect(m_Bounds);
-
 	float frameSize{ 32.f };
 	Rectf dstRect{
 		m_Bounds.left + m_Bounds.width / 2 - frameSize / 2,
@@ -166,27 +164,20 @@ void Madeline::Draw(const LevelScreen* pLevelScreen) const
 		frameSize, frameSize
 	};
 	m_pMultiSpriteSheet->Draw(dstRect);
-
-	//Draw collision boxes
-	//const Rectf& wallRect{ m_OverlapRects[0] };
-	//utils::SetColor(Color4f{ 1.f, 0.f, 0.f, 1.f });
-	//utils::DrawRect(m_Bounds);
-	//utils::DrawRect(wallRect);
 }
 
 void Madeline::Update(float dt)
 {
 	SetStateParameters(dt);
 
-	State prevState{ m_State };
+	m_PrevState = m_State;
 	SetState();
 
-	if (m_State != prevState)
+	if (m_State != m_PrevState)
 		InitialiseState();
 
 	UpdateState(dt);
 
-	//std::cout << "State: " << m_pStateInfo->name << std::endl;
 }
 
 void Madeline::CollisionInfoResponse(int idx, const CollisionInfo& ci)
@@ -218,7 +209,7 @@ void Madeline::CollisionInfoResponse(int idx, const CollisionInfo& ci)
 void Madeline::SetState()
 {
 	Vector2i inputDir{ InputManager::GetControllerInfo().leftJoystickDir };
-	if (m_CanDash && InputManager::IsGameActionTriggered(InputManager::GameAction::Dash))
+	if (!m_Dashing && m_CanDash && InputManager::IsGameActionTriggered(InputManager::GameAction::Dash))
 	{
 		m_CanDash = false;
 		m_Dashing = true;
@@ -236,8 +227,11 @@ void Madeline::SetState()
 			m_State = State::GroundJumping;
 		else if (inputDir.x == 0) //Close to a wall and not moving left/right
 			m_State = State::WallNeutralJumping;
-		else //Close to a wall and moving left/right
+		else if (m_DistFromWall < m_MaxDistFromWallToWallJump)//Close to a wall and moving left/right
 			m_State = State::WallJumping;
+		else //ledge jump
+			m_State = State::GroundJumping;
+
 	}
 	else if (m_Jumping)
 	{
@@ -295,6 +289,12 @@ void Madeline::SetStateParameters(float dt)
 
 void Madeline::InitialiseState()
 {
+	std::cout << "State: " << m_pStateInfo->name << std::endl;
+
+	//Remove previous state SoundEffect
+	if (m_pStateInfo->soundEffect != "")
+		AssetManager::RemoveSoundEffect(m_pStateInfo->soundEffect);
+
 	int stateIdx{ int(m_State) };
 	m_pStateInfo = &m_StateInfoArr[stateIdx];
 	Vector2i inputDir{ InputManager::GetControllerInfo().leftJoystickDir };
@@ -354,4 +354,9 @@ void Madeline::ApplyMovementParameters(float& targetVel, float& vel, float& acc,
 		vel *= wallDir;
 	else if (movementParameters.multiplyInitVelByInputDir)
 		vel *= inputDir;
+}
+
+void Madeline::ResetDash()
+{
+	m_CanDash = true;
 }

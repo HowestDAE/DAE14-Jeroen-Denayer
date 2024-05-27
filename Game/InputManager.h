@@ -39,7 +39,7 @@ public:
 
 	enum class Key
 	{
-		None, Enter, Escape, E, F, C, B, Up, Down, ctrl, S
+		None, Enter, Escape, E, F, C, B, D, Up, Down, ctrl, S
 	};
 
 	enum class GameAction

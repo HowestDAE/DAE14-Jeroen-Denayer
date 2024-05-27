@@ -31,5 +31,7 @@ private:
 	Texture* m_pBgImg;
 	int m_HoveredButtonIdx;
 	std::vector<Button> m_Buttons;
+	float m_UpdateTime;
+	float m_Timer;
 };
 

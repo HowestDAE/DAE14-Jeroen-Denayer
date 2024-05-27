@@ -43,6 +43,7 @@ public:
 	void WritePhysicsBodies(std::stringstream& sStream);
 	void AddCrystal(Vector2f pos);
 	void AddFallingBlock(TileIdx leftBottomIdx, int rows, int cols);
+	void AddDashCrystal(Vector2f pos);
 private:
 	//Functions
 	CollisionDir GetCollisionDir(const Rectf& bounds, bool checkXDir = true, bool checkYDir = true, const Vector2f& velDist = Vector2f{}, float time = 0.f, bool checkVelDir = false) const;

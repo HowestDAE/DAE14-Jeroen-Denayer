@@ -19,8 +19,7 @@ public:
 	virtual void Draw(const LevelScreen* pLevelScreen = nullptr) const override;
 	virtual void Update(float dt) override;
 	virtual void CollisionInfoResponse(int idx, const CollisionInfo& ci) override;
-
-	std::string String() const;
+	virtual std::string String() const override;
 private:
 	//Members
 	TileIdx m_LeftBottomIdx;

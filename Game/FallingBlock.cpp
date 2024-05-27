@@ -12,7 +12,12 @@ FallingBlock::FallingBlock(const TileIdx& leftBottomIdx, int rows, int cols, con
 	, m_Data{ std::vector<uint8_t>(size_t(m_Rows * m_Cols)) }
 {
 	Activate(false); //Start of stationary
-	SetMovement(Vector2f{ 0.f, -20.f }, Vector2f{ 0.f, 0.f }, Vector2f{ 0.f, 30.f });
+	float dist = 3.5f;
+	float time = 0.35f;
+	AccAndVel fallAccVel{ utils::AccAndVelToTravelDistInTime(dist, time) };
+	float gravity{ fallAccVel.acc };
+	float maxFallSpeed = -30.f;
+	SetMovement(Vector2f{ 0.f, maxFallSpeed }, Vector2f{ 0.f, 0.f }, Vector2f{ 0.f, gravity });
 	const size_t min{ std::min(size_t(m_Rows * m_Cols), data.size()) };
 	for (size_t i{}; i < min; ++i)
 		m_Data[i] = data[i];

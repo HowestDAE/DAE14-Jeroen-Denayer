@@ -8,6 +8,8 @@ UIPanel::UIPanel(const std::string& backgroundImgName)
 	: m_pBgImg{ AssetManager::GetTexture("MainMenuBg") }
 	, m_HoveredButtonIdx{0}
 	, m_Buttons{ std::vector<Button>{} }
+	, m_UpdateTime{ 0.15f }
+	, m_Timer{ m_UpdateTime }
 {
 	HoverButton(m_HoveredButtonIdx, true);
 
@@ -32,6 +34,9 @@ UIPanel& UIPanel::operator=(UIPanel&& other) noexcept
 		m_Buttons.clear();
 		for (Button& button : other.m_Buttons)
 			m_Buttons.push_back(std::move(button));
+
+		m_Timer = other.m_Timer;
+		m_UpdateTime = other.m_UpdateTime;
 	}
 	return *this;
 }
@@ -45,18 +50,25 @@ void UIPanel::Draw() const
 
 void UIPanel::Update(float dt)
 {
+	if (m_Timer > 0.f)
+		m_Timer -= dt;
+
 	const int y{ InputManager::GetControllerInfo().leftJoystickDir.y };
-	if (y != 0)
+	if (m_Timer < 0.f && y != 0)
+	{
 		HoverButton(m_HoveredButtonIdx, false);
 
-	if (y == 1 && m_HoveredButtonIdx == -1)
-		m_HoveredButtonIdx = 0;
-	else if (y == 1 && m_HoveredButtonIdx > 0)
-		m_HoveredButtonIdx -= 1;
-	else if (y == -1 && m_HoveredButtonIdx < m_Buttons.size() - 1)
-		m_HoveredButtonIdx += 1;
+		if (m_HoveredButtonIdx == -1)
+			m_HoveredButtonIdx = 0;
+		else if (y == 1 && m_HoveredButtonIdx > 0)
+			m_HoveredButtonIdx -= 1;
+		else if (y == -1 && m_HoveredButtonIdx < m_Buttons.size() - 1)
+			m_HoveredButtonIdx += 1;
 
-	HoverButton(m_HoveredButtonIdx, true);
+		HoverButton(m_HoveredButtonIdx, true);
+
+		m_Timer = m_UpdateTime;
+	}
 }
 
 void UIPanel::AddButton(Button&& button)

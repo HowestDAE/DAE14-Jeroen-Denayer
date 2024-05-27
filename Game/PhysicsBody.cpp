@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "PhysicsBody.h"
 
-PhysicsBody::PhysicsBody(Type type, const Rectf& bounds, bool canDie)
+PhysicsBody::PhysicsBody(Type type, const Rectf& bounds, bool canDie, bool alwaysReceiveCollInfo)
 	: m_Type{ type }
 	, m_Bounds{ bounds }
 	, m_Vel{ Vector2f{} }
@@ -11,7 +11,13 @@ PhysicsBody::PhysicsBody(Type type, const Rectf& bounds, bool canDie)
 	, m_CanDie{ canDie }
 	, m_IsDead{ false }
 	, m_Active{ true }
+	, m_AlwaysReceiveCollInfo{ alwaysReceiveCollInfo }
 {
+}
+
+std::string PhysicsBody::String() const
+{
+	return std::string("");
 }
 
 void PhysicsBody::UpdatePhysics(float dt)
@@ -39,9 +45,9 @@ void PhysicsBody::UpdateAxis(float dt, float& targetVel, float& vel, float& acc)
 		vel = targetVel;
 }
 
-void PhysicsBody::AddOverlapRect(const Vector2f& offset, float width, float height, Type allowedPhysicsBodyCollision, bool detailedCollisionInfo)
+void PhysicsBody::AddOverlapRect(const Vector2f& offset, float width, float height, Type allowedPhysicsBodyCollision, bool alwaysReceiveCollInfo)
 {
-	m_OverlapRects.push_back(OverlapRectInfo{ Rectf{ offset.x, offset.y, width, height }, allowedPhysicsBodyCollision, detailedCollisionInfo });
+	m_OverlapRects.push_back(OverlapRectInfo{ Rectf{ offset.x, offset.y, width, height }, allowedPhysicsBodyCollision, alwaysReceiveCollInfo });
 }
 
 void PhysicsBody::SetPosition(const Point2f& pos)

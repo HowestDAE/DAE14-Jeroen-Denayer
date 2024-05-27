@@ -49,6 +49,8 @@ public:
 	virtual void Draw(const LevelScreen* pLevelScreen = nullptr) const override;
 	virtual void Update(float dt) override;
 	virtual void CollisionInfoResponse(int idx, const CollisionInfo& ci) override;
+
+	void ResetDash();
 private:
 	//Functions
 	void SetState();
@@ -60,6 +62,7 @@ private:
 	//Members
 	MultiSpriteSheet* m_pMultiSpriteSheet;
 	State m_State;
+	State m_PrevState;
 	StateInfo* m_pStateInfo;
 	std::vector<StateInfo> m_StateInfoArr;
 	std::unordered_map<std::string, MovementParameters> m_MovementParametersMap;

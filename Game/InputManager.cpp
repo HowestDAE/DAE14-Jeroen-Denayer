@@ -108,7 +108,12 @@ void InputManager::IUpdate()
 		float axis{ float(axisSint16) / std::numeric_limits<Sint16>::max() };
 		if (std::abs(axis) > deadZoneRightTrigger)
 			m_GameActions.emplace(GameAction::Grab);
+		else
+			m_GameActions.erase(GameAction::Grab);
 	}
+
+	bool grabbing{ IsGameActionTriggered(GameAction::Grab) };
+	std::cout << grabbing << std::endl;
 
 	TriggerCallbacks();
 }
@@ -128,8 +133,7 @@ void InputManager::IReset()
 	m_MouseEvents.erase(MouseEvent::ScrollingMMB);
 	m_MouseEvents.erase(MouseEvent::DraggingMMB);
 
-	m_GameActions.erase(GameAction::Jump);
-	m_GameActions.erase(GameAction::Grab);
+	//m_GameActions.erase(GameAction::Grab);
 }
 
 bool InputManager::IHandleEvent(SDL_Event& e)
@@ -210,6 +214,7 @@ void InputManager::ProcessKeyEvent(const SDL_KeyboardEvent& e, bool keyDown)
 			m_GameActions.erase(GameAction::Grab);
 		break;
 	case SDLK_d:
+		AddRemoveKey(Key::D, keyDown);
 		if (keyDown)
 			m_GameActions.emplace(GameAction::Dash);
 		else
