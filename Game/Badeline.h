@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include "MultiSpriteSheet.h"
 
 class Badeline
 {
@@ -11,6 +12,10 @@ class Badeline
 //	Badeline(Badeline&& other) = delete;
 //	Badeline& operator=(Badeline&& other) = delete;
 //private:
+//	//Functions
+//	
+//	//Members
+//	MultiSpriteSheet m_MultiSpriteSheet;
 //	std::vector<Vector2f> m_Path;
 };
 

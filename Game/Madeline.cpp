@@ -1,15 +1,38 @@
 #include "pch.h"
 #include "Madeline.h"
 #include "Game.h"
-#include "MultiSpriteSheet.h"
 #include "InputManager.h"
 #include "AssetManager.h"
 
 Madeline::Madeline(const Point2f& pos, float width, float height)
 	: PhysicsBody(PhysicsBody::Type::Madeline, Rectf{pos.x, pos.y, width, height}, true, true)
+	, m_MultiSpriteSheet{ MultiSpriteSheet{ "MadelineSpritesheet", 14, 14,
+		std::unordered_map<std::string, MultiSpriteSheet::SpriteSheetInfo>
+			{
+				{ "Climbing", { 0, 15, 0.1f } },
+				{ "Crouching", {15, 16, 0.1f} },
+				{ "Dangling", {16, 26, 0.1f} },
+				{ "Dashing", {26, 30, 0.1f} },
+				{ "Falling", {30, 38, 0.1f} },
+				{ "FallPose", {38, 49, 0.1f} },
+				{ "IdleChinScratching", {49, 73, 0.1f} },
+				{ "IdleCoughing", {73, 85, 0.1f} },
+				{ "IdleLookingAround", {85, 97, 0.1f} },
+				{ "IdleStanding", {97, 106, 0.1f} },
+				{ "JumpingFast", {106, 110, 0.1f} },
+				{ "JumpingSlow", {110, 114, 0.1f} },
+				{ "LaunchRecover", {114, 125, 0.1f} },
+				{ "Launch", {125, 133, 0.1f} },
+				{ "LookUp", {133, 141, 0.1f} },
+				{ "Push", {141, 157, 0.1f} },
+				{ "RunFast", {157, 169, 0.1f} },
+				{ "RunSlow", {169, 181, 0.1f} },
+				{ "Walk", {181, 193, 0.1f} }
+			}
+		}
+	}
 	, m_State{ State::Idle }
 	, m_PrevState{ State::Idle }
-	, m_pStateInfo{ nullptr }
 	, m_StateInfoArr{
 		std::vector<StateInfo>{
 			{"Idle"				, "IdleStanding", nullptr, nullptr, ""},
@@ -29,20 +52,20 @@ Madeline::Madeline(const Point2f& pos, float width, float height)
 		}
 	}
 	//State parameters
-		, m_OnGround{}
-		, m_CanJump{}
-		, m_Jumping{}
-		, m_AirTime{}
-		, m_Grabbing{}
-		, m_AgainstWall{}
-		, m_AgainstRightWall{}
-		, m_AgainstLeftWall{}
-		, m_DistFromWall{}
-		, m_CanDash{}
-		, m_Dashing{}
-		//Constants
-		, m_LedgeJumpTime{ 0.15f }
-		, m_MaxDistFromWallToWallJump{ 2.f }
+	, m_OnGround{}
+	, m_CanJump{}
+	, m_Jumping{}
+	, m_AirTime{}
+	, m_Grabbing{}
+	, m_AgainstWall{}
+	, m_AgainstRightWall{}
+	, m_AgainstLeftWall{}
+	, m_DistFromWall{}
+	, m_CanDash{}
+	, m_Dashing{}
+	//Constants
+	, m_LedgeJumpTime{ 0.15f }
+	, m_MaxDistFromWallToWallJump{ 2.f }
 {
 	AddOverlapRect(Vector2f{ m_Bounds.left - m_MaxDistFromWallToWallJump, m_Bounds.bottom + m_Bounds.height / 3 }, m_Bounds.width + 2 * m_MaxDistFromWallToWallJump, m_Bounds.height / 3, PhysicsBody::Type::Level, true);
 
@@ -113,46 +136,10 @@ Madeline::Madeline(const Point2f& pos, float width, float height)
 	m_StateInfoArr[12].y = &m_MovementParametersMap["WallSlidingY"];
 	m_StateInfoArr[13].x = &m_MovementParametersMap["Dashing"];
 	m_StateInfoArr[13].y = &m_MovementParametersMap["Dashing"];
-
-	m_pStateInfo = &m_StateInfoArr[0];
-
-	m_pMultiSpriteSheet = new MultiSpriteSheet{ "MadelineSpritesheet", 14, 14,
-		std::unordered_map<std::string, MultiSpriteSheet::SpriteSheetInfo>{
-			{ "Climbing", { 0, 15, 0.1f } },
-			{ "Crouching", {15, 16, 0.1f} },
-			{ "Dangling", {16, 26, 0.1f} },
-			{ "Dashing", {26, 30, 0.1f} },
-			{ "Falling", {30, 38, 0.1f} },
-			{ "FallPose", {38, 49, 0.1f} },
-			{ "IdleChinScratching", {49, 73, 0.1f} },
-			{ "IdleCoughing", {73, 85, 0.1f} },
-			{ "IdleLookingAround", {85, 97, 0.1f} },
-			{ "IdleStanding", {97, 106, 0.1f} },
-			{ "JumpingFast", {106, 110, 0.1f} },
-			{ "JumpingSlow", {110, 114, 0.1f} },
-			{ "LaunchRecover", {114, 125, 0.1f} },
-			{ "Launch", {125, 133, 0.1f} },
-			{ "LookUp", {133, 141, 0.1f} },
-			{ "Push", {141, 157, 0.1f} },
-			{ "RunFast", {157, 169, 0.1f} },
-			{ "RunSlow", {169, 181, 0.1f} },
-			{ "Walk", {181, 193, 0.1f} }
-		}
-	};
 }
 
 Madeline::~Madeline()
 {
-	delete m_pMultiSpriteSheet;
-	m_pMultiSpriteSheet = nullptr;
-
-	//Below not really necessary
-	m_pStateInfo = nullptr;
-	for (StateInfo& stateInfo : m_StateInfoArr)
-	{
-		stateInfo.x = nullptr;
-		stateInfo.y = nullptr;
-	}
 }
 
 void Madeline::Draw(const LevelScreen* pLevelScreen) const
@@ -163,7 +150,7 @@ void Madeline::Draw(const LevelScreen* pLevelScreen) const
 		m_Bounds.bottom,
 		frameSize, frameSize
 	};
-	m_pMultiSpriteSheet->Draw(dstRect);
+	m_MultiSpriteSheet.Draw(dstRect);
 }
 
 void Madeline::Update(float dt)
@@ -239,7 +226,7 @@ void Madeline::SetState()
 			if ((m_State == State::WallJumping ||
 				m_State == State::WallNeutralJumping ||
 				m_State == State::WallHopping) &&
-				(m_Vel.x == m_pStateInfo->x->maxSpeed ||
+				(m_Vel.x == m_StateInfoArr[int(m_State)].x->maxSpeed ||
 				m_Vel.x > 0 && inputDir.x > 0 || m_Vel.x < 0 && inputDir.x < 0)) //Transition to normal jump
 				m_State = State::Jumping;
 			else
@@ -284,63 +271,62 @@ void Madeline::SetStateParameters(float dt)
 	//m_CanDash will go from false to true if no dash input and m_OnGround
 	m_CanDash |= (!InputManager::IsGameActionTriggered(InputManager::GameAction::Dash) && m_OnGround);
 	//m_Dashing will go from true to false if vel x and y have reached the maxSpeed
-	m_Dashing &= !(m_Vel.x == m_pStateInfo->x->maxSpeed && m_Vel.y == m_pStateInfo->y->maxSpeed);
+	m_Dashing &= !(m_Vel.x == m_StateInfoArr[int(m_State)].x->maxSpeed && m_Vel.y == m_StateInfoArr[int(m_State)].y->maxSpeed);
 }
 
 void Madeline::InitialiseState()
 {
-	std::cout << "State: " << m_pStateInfo->name << std::endl;
+	std::cout << "State: " << m_StateInfoArr[int(m_State)].name << std::endl;
 
 	//Remove previous state SoundEffect
-	if (m_pStateInfo->soundEffect != "")
-		AssetManager::RemoveSoundEffect(m_pStateInfo->soundEffect);
+	if (m_StateInfoArr[int(m_State)].soundEffect != "")
+		AssetManager::RemoveSoundEffect(m_StateInfoArr[int(m_State)].soundEffect);
 
 	int stateIdx{ int(m_State) };
-	m_pStateInfo = &m_StateInfoArr[stateIdx];
 	Vector2i inputDir{ InputManager::GetControllerInfo().leftJoystickDir };
-	ApplyMovementParameters(m_TargetVel.x, m_Vel.x, m_Acc.x, *m_pStateInfo->x, inputDir.x);
-	ApplyMovementParameters(m_TargetVel.y, m_Vel.y, m_Acc.y, *m_pStateInfo->y, inputDir.y);
+	ApplyMovementParameters(m_TargetVel.x, m_Vel.x, m_Acc.x, *m_StateInfoArr[int(m_State)].x, inputDir.x);
+	ApplyMovementParameters(m_TargetVel.y, m_Vel.y, m_Acc.y, *m_StateInfoArr[int(m_State)].y, inputDir.y);
 
 	//Set the MultiSpriteSheet to the correct animation
-	m_pMultiSpriteSheet->SetSpriteSheetName(m_pStateInfo->animation);
+	m_MultiSpriteSheet.SetSpriteSheetName(m_StateInfoArr[int(m_State)].animation);
 
 	// To-Do: clean up flipping texture part
 	//Flip texture if needed
 	if (inputDir.x != 0)
 	{
 		if (m_AgainstWall)
-			m_pMultiSpriteSheet->Flip(m_AgainstLeftWall);
+			m_MultiSpriteSheet.Flip(m_AgainstLeftWall);
 		else
-			m_pMultiSpriteSheet->Flip(false);
+			m_MultiSpriteSheet.Flip(false);
 
 		if (m_State == State::Dashing)
 		{
-			m_pMultiSpriteSheet->Flip(inputDir.x < 0);
+			m_MultiSpriteSheet.Flip(inputDir.x < 0);
 		}
 	}
 
 	//Play Sound
-	if (m_pStateInfo->soundEffect != "")
-		AssetManager::PlaySoundEffect(m_pStateInfo->soundEffect);
+	if (m_StateInfoArr[int(m_State)].soundEffect != "")
+		AssetManager::PlaySoundEffect(m_StateInfoArr[int(m_State)].soundEffect);
 }
 
 void Madeline::UpdateState(float dt)
 {
 	Vector2i dir{ InputManager::GetControllerInfo().leftJoystickDir };
-	if (m_pStateInfo->x->allowDirChange)
+	if (m_StateInfoArr[int(m_State)].x->allowDirChange)
 	{
-		m_TargetVel.x = m_pStateInfo->x->maxSpeed * dir.x;
+		m_TargetVel.x = m_StateInfoArr[int(m_State)].x->maxSpeed * dir.x;
 		bool flipX{ m_AgainstLeftWall || m_Acc.x < 0 };
-		m_pMultiSpriteSheet->Flip(flipX);
+		m_MultiSpriteSheet.Flip(flipX);
 	}
 
-	if (m_pStateInfo->y->allowDirChange)
-		m_TargetVel.y = m_pStateInfo->y->maxSpeed * dir.y;
+	if (m_StateInfoArr[int(m_State)].y->allowDirChange)
+		m_TargetVel.y = m_StateInfoArr[int(m_State)].y->maxSpeed * dir.y;
 
-	m_pMultiSpriteSheet->Update(dt);
+	m_MultiSpriteSheet.Update(dt);
 }
 
-void Madeline::ApplyMovementParameters(float& targetVel, float& vel, float& acc, MovementParameters& movementParameters, int inputDir)
+void Madeline::ApplyMovementParameters(float& targetVel, float& vel, float& acc, const MovementParameters& movementParameters, int inputDir)
 {
 	targetVel = movementParameters.maxSpeed;
 	acc = movementParameters.acc;

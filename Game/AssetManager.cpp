@@ -13,7 +13,7 @@ AssetManager::AssetManager()
 	, m_pSoundStream{ nullptr }
 	, m_SoundEffects{ std::unordered_map<std::string, SoundEffect>{} }
 {
-	m_pDefaultTexture = new Texture("Default.png");
+	FileIO::LoadTexture("Default", m_pDefaultTexture);
 }
 
 AssetManager::~AssetManager()
@@ -30,7 +30,7 @@ AssetManager::~AssetManager()
 Texture* AssetManager::IGetTexture(const std::string& name)
 {
 	std::unordered_map<std::string, GLuint>::iterator it{ m_TextureNameIdMap.find(name) };
-	if (it == m_TextureNameIdMap.end()) //does not yet exist
+	if (name.c_str() != "Default" && it == m_TextureNameIdMap.end()) //does not yet exist
 	{
 		Texture* pTexture{};
 		if (FileIO::LoadTexture(name, pTexture))
@@ -49,7 +49,7 @@ Texture* AssetManager::IGetTexture(const std::string& name)
 		++m_Textures[id].refCount;
 	}
 
-	if (it != m_TextureNameIdMap.end())
+	if (it != m_TextureNameIdMap.end()) //Found the texture on disk
 	{
 		GLuint id{ m_TextureNameIdMap[name] };
 		return m_Textures[id].pTexture;
@@ -106,14 +106,19 @@ void AssetManager::RemoveTexture(Texture* pTexture)
 	Get().IRemoveTexture(pTexture);
 }
 
-bool AssetManager::PlaySoundStream(const std::string& name)
+bool AssetManager::PlaySoundStream(const std::string& name, float volumePercentage)
 {
 	AssetManager& am{ Get() };
 	if (am.m_pSoundStream)
 		delete am.m_pSoundStream;
 	FileIO::LoadSound(name, am.m_pSoundStream);
 	if (am.m_pSoundStream)
+	{
+		int volume{ am.m_pSoundStream->GetVolume() };
+		int newVolume{ int(volume * volumePercentage) };
+		am.m_pSoundStream->SetVolume(newVolume);
 		am.m_pSoundStream->Play(true);
+	}
 	return am.m_pSoundStream;
 }
 

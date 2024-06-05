@@ -22,6 +22,9 @@ std::string PhysicsBody::String() const
 
 void PhysicsBody::UpdatePhysics(float dt)
 {
+	if (!m_Active)
+		return;
+
 	if (m_Vel.x != m_TargetVel.x)
 		UpdateAxis(dt, m_TargetVel.x, m_Vel.x, m_Acc.x);
 
@@ -31,9 +34,6 @@ void PhysicsBody::UpdatePhysics(float dt)
 
 void PhysicsBody::UpdateAxis(float dt, float& targetVel, float& vel, float& acc)
 {
-	if (!m_Active)
-		return;
-
 	//Point acc in direction of targetVel
 	if (targetVel > 0.f || (targetVel == 0.f && vel < 0.f))
 		acc = std::abs(acc);
@@ -50,7 +50,7 @@ void PhysicsBody::AddOverlapRect(const Vector2f& offset, float width, float heig
 	m_OverlapRects.push_back(OverlapRectInfo{ Rectf{ offset.x, offset.y, width, height }, allowedPhysicsBodyCollision, alwaysReceiveCollInfo });
 }
 
-void PhysicsBody::SetPosition(const Point2f& pos)
+void PhysicsBody::SetPosition(const Vector2f& pos)
 {
 	Point2f origPos{ m_Bounds.left, m_Bounds.bottom };
 	m_Bounds.left = pos.x;

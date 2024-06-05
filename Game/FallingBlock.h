@@ -20,11 +20,14 @@ public:
 	virtual void Update(float dt) override;
 	virtual void CollisionInfoResponse(int idx, const CollisionInfo& ci) override;
 	virtual std::string String() const override;
+	virtual void Activate(bool activate) override;
 private:
 	//Members
 	TileIdx m_LeftBottomIdx;
 	int m_Rows;
 	int m_Cols;
 	std::vector<uint8_t> m_Data;
+	bool m_UpdateFallTimer;
+	float m_FallTimer;
 };
 

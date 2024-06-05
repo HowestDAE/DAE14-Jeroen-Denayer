@@ -33,7 +33,7 @@ public:
 	static Texture* GetTexture(const std::string& name);
 	static void GetTextures(const std::vector<std::string>& textureNames, std::vector<Texture*>& textureArr);
 	static void RemoveTexture(Texture* pTexture);
-	static bool PlaySoundStream(const std::string& name);
+	static bool PlaySoundStream(const std::string& name, float volumePercentage = 1.f);
 	static bool PlaySoundEffect(const std::string& name);
 	static void RemoveSoundEffect(const std::string& name);
 private:

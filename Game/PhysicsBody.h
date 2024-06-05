@@ -21,16 +21,16 @@ public:
 	virtual void Update(float dt) = 0;
 	virtual void CollisionInfoResponse(int idx, const CollisionInfo& ci) = 0;
 	virtual std::string String() const;
+	virtual void Activate(bool activate);
 
 	void UpdatePhysics(float dt);
 	void AddOverlapRect(const Vector2f& offset, float width, float height, Type allowedPhysicsBodyCollision, bool alwaysReceiveCollInfo);
-	void SetPosition(const Point2f& pos);
+	void SetPosition(const Vector2f& pos);
 	void SetMovement(const Vector2f& targetVel, const Vector2f& vel, const Vector2f& acc);
 	Rectf GetBounds() const;
 	bool IsDead() const;
 	void SetIsDead(bool isDead);
 	Type GetType() const;
-	void Activate(bool activate);
 
 	struct OverlapRectInfo
 	{

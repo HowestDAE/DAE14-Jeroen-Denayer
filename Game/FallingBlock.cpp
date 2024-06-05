@@ -10,8 +10,10 @@ FallingBlock::FallingBlock(const TileIdx& leftBottomIdx, int rows, int cols, con
 	, m_Rows{ rows }
 	, m_Cols{ cols }
 	, m_Data{ std::vector<uint8_t>(size_t(m_Rows * m_Cols)) }
+	, m_UpdateFallTimer{ false }
+	, m_FallTimer{ 2.f }
 {
-	Activate(false); //Start of stationary
+	PhysicsBody::Activate(false); //Start of stationary
 	float dist = 3.5f;
 	float time = 0.35f;
 	AccAndVel fallAccVel{ utils::AccAndVelToTravelDistInTime(dist, time) };
@@ -34,11 +36,20 @@ void FallingBlock::Draw(const LevelScreen* pLevelScreen) const
 
 void FallingBlock::Update(float dt)
 {
+	if (m_UpdateFallTimer)
+	{
+		m_FallTimer -= dt;
+		if (m_FallTimer < 0.f)
+		{
+			PhysicsBody::Activate(true);
+			m_UpdateFallTimer = false;
+		}
+	}
 }
 
 void FallingBlock::CollisionInfoResponse(int idx, const CollisionInfo& ci)
 {
-	Activate(false);
+	PhysicsBody::Activate(false);
 }
 
 std::string FallingBlock::String() const
@@ -46,4 +57,9 @@ std::string FallingBlock::String() const
 	std::stringstream stream;
 	stream << int(m_Type) << "," << m_LeftBottomIdx.r << "," << m_LeftBottomIdx.c << "," << m_Rows << "," << m_Cols;
 	return stream.str();
+}
+
+void FallingBlock::Activate(bool activate)
+{
+	m_UpdateFallTimer = true;
 }

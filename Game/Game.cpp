@@ -117,7 +117,7 @@ void Game::Play()
 	else
 		GameData::SetMode(GameData::Mode::PlayLevel);
 
-	AssetManager::PlaySoundStream("ThemeReflection");
+	AssetManager::PlaySoundStream("ThemeReflection", 0.7f);
 }
 
 void Game::RunEditor()

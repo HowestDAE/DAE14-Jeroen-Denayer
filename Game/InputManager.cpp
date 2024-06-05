@@ -103,18 +103,15 @@ void InputManager::IUpdate()
 
 	if (SDL_GameControllerGetAxis(m_pSDLGameController, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERRIGHT))
 	{
-		float deadZoneRightTrigger{ 0.5f };
+		float deadZoneRightTrigger{ 0.9f };
 		Sint16 axisSint16{ SDL_GameControllerGetAxis(m_pSDLGameController, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERRIGHT) };
 		float axis{ float(axisSint16) / std::numeric_limits<Sint16>::max() };
+		std::cout << axis << std::endl;
 		if (std::abs(axis) > deadZoneRightTrigger)
 			m_GameActions.emplace(GameAction::Grab);
 		else
 			m_GameActions.erase(GameAction::Grab);
 	}
-
-	bool grabbing{ IsGameActionTriggered(GameAction::Grab) };
-	std::cout << grabbing << std::endl;
-
 	TriggerCallbacks();
 }
 
@@ -132,8 +129,6 @@ void InputManager::IReset()
 	m_MouseEvents.erase(MouseEvent::MovingLMB);
 	m_MouseEvents.erase(MouseEvent::ScrollingMMB);
 	m_MouseEvents.erase(MouseEvent::DraggingMMB);
-
-	//m_GameActions.erase(GameAction::Grab);
 }
 
 bool InputManager::IHandleEvent(SDL_Event& e)

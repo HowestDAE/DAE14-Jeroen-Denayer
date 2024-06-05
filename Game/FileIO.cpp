@@ -157,10 +157,15 @@ bool FileIO::LoadTexture(const std::string& name, Texture*& pTexture)
 {
 	bool succes{ false };
 	std::stringstream path{};
+	std::string defaultName{ "Default" };
+	std::string fileName{ (name.c_str() == "") ? defaultName : "name" };
 	path << FileIO::GetDir(FileIO::Dir::Texture) << name << ".png";
 	if (!std::filesystem::exists(path.str()))
 	{
-		std::cout << "FileIO::LoadTexture(): Couldn't find texture on disk: " << path.str() << std::endl;
+		if (fileName == defaultName)
+			std::cout << "FileIO::LoadTexture(): Couldn't find default texture on disk: " << path.str() << std::endl;
+		else
+			std::cout << "FileIO::LoadTexture(): Couldn't find texture on disk: " << path.str() << std::endl;
 	}
 	else
 	{

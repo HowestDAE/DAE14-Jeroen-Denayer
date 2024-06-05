@@ -77,7 +77,7 @@ void Level::Reset()
 	LoadLevel(m_StartRoom); //hardcoded 1st level atm
 
 	m_pCurLevelScreen->AddPhysicsBody(m_pPlayer);
-	Point2f pos{ 8 * 8, 4 * 8 }; //hardcoded spawn position
+	Vector2f pos{ 8 * 8, 4 * 8 }; //hardcoded spawn position
 	m_pPlayer->SetIsDead(false);
 	m_pPlayer->SetPosition(pos);
 }

@@ -1,9 +1,9 @@
  #pragma once
 #include "PhysicsBody.h"
 #include <unordered_map>
+#include "MultiSpriteSheet.h"
 
 //Forward declarations
-class MultiSpriteSheet;
 
 class Madeline final
 	:public PhysicsBody
@@ -57,13 +57,12 @@ private:
 	void SetStateParameters(float dt);
 	void InitialiseState();
 	void UpdateState(float dt);
-	void ApplyMovementParameters(float& targetVel, float& vel, float& acc, MovementParameters& movementParameters, int inputDir);
+	void ApplyMovementParameters(float& targetVel, float& vel, float& acc, const MovementParameters& movementParameters, int inputDir);
 
 	//Members
-	MultiSpriteSheet* m_pMultiSpriteSheet;
+	MultiSpriteSheet m_MultiSpriteSheet;
 	State m_State;
 	State m_PrevState;
-	StateInfo* m_pStateInfo;
 	std::vector<StateInfo> m_StateInfoArr;
 	std::unordered_map<std::string, MovementParameters> m_MovementParametersMap;
 

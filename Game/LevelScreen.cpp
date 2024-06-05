@@ -155,20 +155,9 @@ bool LevelScreen::Update(float dt)
 	for (std::vector<PhysicsBody*>::iterator it{m_pPhysicsBodies.begin()}; it != m_pPhysicsBodies.end();)
 	{
 		PhysicsBody* pPhysicsBody{ *it };
-		if (!pPhysicsBody) //nullptr
-		{
-			it = m_pPhysicsBodies.erase(it);
-			continue;
-		}
-		//else if (!pPhysicsBody->m_Active)
-		//{
-		//	++it;
-		//	continue;
-		//}
-
 		pPhysicsBody->Update(dt); //Derived update
 		pPhysicsBody->UpdatePhysics(dt); //Base update
-		CollisionInfo bodyCI{ MovePhysicsRect(pPhysicsBody->m_Bounds, pPhysicsBody->m_Vel, dt) };
+		CollisionInfo bodyCI{ MovePhysicsRect(pPhysicsBody, pPhysicsBody->m_Vel, dt) };
 		
 		if (pPhysicsBody->m_AlwaysReceiveCollInfo || bodyCI.collided)
 			pPhysicsBody->CollisionInfoResponse(0, bodyCI);
@@ -182,6 +171,7 @@ bool LevelScreen::Update(float dt)
 				switch (pPhysicsBodyOther->m_Type)
 				{
 				case PhysicsBody::Type::FallingBlock:
+					//bodyCI = MovePhysicsRect2(pPhysicsBody->m_Bounds, pPhysicsBodyOther->m_Bounds, pPhysicsBody->m_Vel, dt);
 					if (utils::IsOverlapping(pPhysicsBody->m_Bounds, pPhysicsBodyOther->m_OverlapRects[0].rect))
 						pPhysicsBodyOther->Activate(true);
 					break;
@@ -195,29 +185,9 @@ bool LevelScreen::Update(float dt)
 					}
 					break;
 				}
-
-			//Check for solid collision between FallingBlock m_Bounds
-			//utils::IsOverlapping(pPhysicsBody->m_Bounds, pFallingBlock->m_Bounds
-			//Adapt DetectRectCollision to work with arbitary rect input not just tiles
 			}
-			break;
-		}
 
-		//Move all the other overlapRects connected to this PhysicsBody and check for collision with level
-		for (int i{}; i < pPhysicsBody->m_OverlapRects.size(); i++)
-		{
-			PhysicsBody::OverlapRectInfo& overlapRect{ pPhysicsBody->m_OverlapRects[i] };
-			Rectf& rect{ overlapRect.rect };
-			rect += bodyCI.movedDist;
-			CollisionInfo overlapCI{ DetectRectCollision(rect) };
-			
-			if (overlapRect.alwaysReceiveCollInfo || overlapCI.collided)
-				pPhysicsBody->CollisionInfoResponse(i + 1, overlapCI); // + 1 because 0 is ALWAYS the collision body
-		}
-
-		//Check collision with crystals
-		if (pPhysicsBody->m_CanDie)
-		{
+			//Check if player overlaps any crystals
 			for (Vector2f& pos : m_CrystalPositions)
 			{
 				Circlef crystal{ Point2f{pos.x, pos.y}, m_pCrystal->GetHeight() / 2 * 0.75f };
@@ -226,6 +196,20 @@ bool LevelScreen::Update(float dt)
 					pPhysicsBody->m_IsDead = true;
 					levelActionRequired = true;
 				}
+			}
+
+			break;
+		}
+
+		//check for collision between overlapRects and with level
+		for (int i{}; i < pPhysicsBody->m_OverlapRects.size(); i++)
+		{
+			PhysicsBody::OverlapRectInfo& overlapRect{ pPhysicsBody->m_OverlapRects[i] };
+			if (overlapRect.AllowedPhysicsBodyCollisionType == PhysicsBody::Type::Level)
+			{
+				CollisionInfo overlapCI{ DetectRectCollision(overlapRect.rect) };
+				if (overlapRect.alwaysReceiveCollInfo || overlapCI.collided)
+					pPhysicsBody->CollisionInfoResponse(i + 1, overlapCI); // + 1 because 0 is ALWAYS the collision body
 			}
 		}
 
@@ -268,7 +252,7 @@ void LevelScreen::AddPhysicsBodyThroughGate(PhysicsBody* pPhysicsBody, const Lev
 {
 	AddPhysicsBody(pPhysicsBody);
 	Rectf gateRect{ gate.GetRect(m_TileSize, m_Rows, m_Cols) };
-	Point2f spawnPos{ gateRect.left, gateRect.bottom };
+	Vector2f spawnPos{ gateRect.left, gateRect.bottom };
 	bool IsGateVertical{ int(gate.GetSide()) % 2 == 0 };
 	if (IsGateVertical)
 		spawnPos.x += (gate.GetSide() == LevelScreenGate::Side::Right) ? -(pPhysicsBody->m_Bounds.width + m_TileSize) : m_TileSize;
@@ -299,39 +283,41 @@ Checks for collision between a Rectf and a LevelScreen
 If a collision was found, the Rectf is moved to an appropriate position
 The velocity is also modified!!
 */
-CollisionInfo LevelScreen::MovePhysicsRect(Rectf& bounds, Vector2f& vel, float time) const
+CollisionInfo LevelScreen::MovePhysicsRect(PhysicsBody* pPhysicsBody, Vector2f& vel, float time) const
 {
+	const Rectf bounds{ pPhysicsBody->GetBounds() };
 	Point2f prevPos{ bounds.left, bounds.bottom };
 	CollisionInfo ci{ DetectRectCollision(bounds, true, true, vel, time, true) };
 
 	//Set position and vel based on collision information
+	Vector2f newPos{ bounds.left, bounds.bottom };
 	if (ci.collDir.x)
 	{
 		vel.x = 0.f;
 		if (ci.collDir.left && !ci.collDir.right)
-			bounds.left = ci.left.collPos;
+			newPos.x = ci.left.collPos;
 		else if (ci.collDir.right && !ci.collDir.left)
-			bounds.left = ci.right.collPos - bounds.width;
+			newPos.x = ci.right.collPos - bounds.width;
 		// else left && right -> squished form both sides
 	}
 	else
-		bounds.left += vel.x * m_PixPerM * time;
+		newPos.x += vel.x * m_PixPerM * time;
 
 	if (ci.collDir.y)
 	{
 		vel.y = 0.f;
 		if (ci.collDir.up && !ci.collDir.down)
-			bounds.bottom = ci.up.collPos - bounds.height;
+			newPos.y = ci.up.collPos - bounds.height;
 		else if (ci.collDir.down && !ci.collDir.up)
-			bounds.bottom = ci.down.collPos;
+			newPos.y = ci.down.collPos;
 		// else up && down -> squished from both sides
 	}
 	else
-		bounds.bottom += vel.y * m_PixPerM * time;
+		newPos.y += vel.y * m_PixPerM * time;
 
-	Point2f newPos{ bounds.left, bounds.bottom };
 	ci.movedDist = Point2f{ newPos.x - prevPos.x, newPos.y - prevPos.y };
-
+	//Changes the actual position of the physicsBody
+	pPhysicsBody->SetPosition(newPos);
 	return ci;
 }
 
