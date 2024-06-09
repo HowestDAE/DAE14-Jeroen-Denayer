@@ -188,7 +188,7 @@ void Madeline::CollisionInfoResponse(int overlapRectIdx, const CollisionInfo& ci
 			AssetManager::PlaySoundEffect("Death");
 			m_Alive = false;
 			break;
-		case PhysicsBody::Type::Level: case PhysicsBody::Type::FallingBlock:
+		case PhysicsBody::Type::Level:
 		{
 			bool prevOnGround{ m_OnGround };
 			m_OnGround = m_Vel.y <= 0.f && ci.collDir.down;

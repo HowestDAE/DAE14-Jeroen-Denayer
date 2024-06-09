@@ -257,6 +257,15 @@ bool LevelScreen::Update(float dt)
 							}
 							break;
 						}
+						//case PhysicsBody::Type::DashCrystal: case PhysicsBody::Type::FallingBlock: case PhysicsBody::Type::Badeline:
+						//{
+						//	if (utils::IsOverlapping(overlapInfo.rect, otherOverlapInfo.rect))
+						//	{
+						//		pOtherPhysicsBody->CollisionInfoResponse(overlapRectIdx, CollisionInfo{}, pPhysicsBody->GetType(), pPhysicsBody);
+						//		pPhysicsBody->CollisionInfoResponse(overlapRectIdx, CollisionInfo{}, pOtherPhysicsBody->GetType(), pOtherPhysicsBody);
+						//	}
+						//	break;
+						//}
 						}
 					}
 				}

@@ -34,4 +34,3 @@ private:
 };
 
 bool operator==(const LevelScreenGate& lhs, const LevelScreenGate& rhs);
-

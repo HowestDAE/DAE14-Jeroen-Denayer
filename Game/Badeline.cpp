@@ -97,8 +97,6 @@ void Badeline::Update(float dt)
 	}
 
 	m_MultiSpriteSheet.Update(dt);
-
-	std::cout << m_Pos.x << " " << m_Pos.y << std::endl;
 }
 
 void Badeline::CollisionInfoResponse(int overlapRectIdx, const CollisionInfo& ci, Type type, const PhysicsBody* pCollisionBody)
