@@ -9,6 +9,7 @@ class PhysicsBody;
 class Texture;
 class InputManager;
 class Camera;
+class Badeline;
 
 class Level final
 {
@@ -33,7 +34,9 @@ private:
 	bool m_IsValid;
 	std::string m_StartRoom;
 	Camera* m_pCamera;
-	PhysicsBody* m_pPlayer;
+	PhysicsBody* m_pPlayer;	
+	std::string m_BadelineRoom;
+	Badeline* m_pBadeline;
 	LevelScreen* m_pCurLevelScreen;
 	LevelScreen* m_pNextLevelScreen;
 };

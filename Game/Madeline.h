@@ -21,11 +21,6 @@ public:
 		Idle, Running, Jumping, EndingJump, GroundJumping, WallJumping, WallHopping, WallNeutralJumping, Falling, Crouching, WallGrabbing, WallClimbing, WallSliding, Dashing
 	};
 
-	enum class CollisionRectNames
-	{
-		Body, WallDetection
-	};
-
 	struct MovementParameters
 	{
 		float maxSpeed; //must have direction included, is flipped based on input.dir if allowDirChange is true
@@ -48,9 +43,10 @@ public:
 
 	virtual void Draw(const LevelScreen* pLevelScreen = nullptr) const override;
 	virtual void Update(float dt) override;
-	virtual void CollisionInfoResponse(int idx, const CollisionInfo& ci) override;
+	virtual void CollisionInfoResponse(int overlapRectIdx, const CollisionInfo& ci, Type type, const PhysicsBody* pCollisionBody = nullptr) override;
 
-	void ResetDash();
+	bool IsAlive() const;
+	void SetAlive(bool alive);
 private:
 	//Functions
 	void SetState();
@@ -60,6 +56,7 @@ private:
 	void ApplyMovementParameters(float& targetVel, float& vel, float& acc, const MovementParameters& movementParameters, int inputDir);
 
 	//Members
+	bool m_Alive;
 	MultiSpriteSheet m_MultiSpriteSheet;
 	State m_State;
 	State m_PrevState;

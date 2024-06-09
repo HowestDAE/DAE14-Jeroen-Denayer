@@ -106,7 +106,6 @@ void InputManager::IUpdate()
 		float deadZoneRightTrigger{ 0.9f };
 		Sint16 axisSint16{ SDL_GameControllerGetAxis(m_pSDLGameController, SDL_GameControllerAxis::SDL_CONTROLLER_AXIS_TRIGGERRIGHT) };
 		float axis{ float(axisSint16) / std::numeric_limits<Sint16>::max() };
-		std::cout << axis << std::endl;
 		if (std::abs(axis) > deadZoneRightTrigger)
 			m_GameActions.emplace(GameAction::Grab);
 		else

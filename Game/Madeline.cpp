@@ -5,7 +5,8 @@
 #include "AssetManager.h"
 
 Madeline::Madeline(const Point2f& pos, float width, float height)
-	: PhysicsBody(PhysicsBody::Type::Madeline, Rectf{pos.x, pos.y, width, height}, true, true)
+	: PhysicsBody(PhysicsBody::Type::Madeline, Vector2f{pos.x, pos.y} )
+	, m_Alive{ true }
 	, m_MultiSpriteSheet{ MultiSpriteSheet{ "MadelineSpritesheet", 14, 14,
 		std::unordered_map<std::string, MultiSpriteSheet::SpriteSheetInfo>
 			{
@@ -67,7 +68,16 @@ Madeline::Madeline(const Point2f& pos, float width, float height)
 	, m_LedgeJumpTime{ 0.15f }
 	, m_MaxDistFromWallToWallJump{ 2.f }
 {
-	AddOverlapRect(Vector2f{ m_Bounds.left - m_MaxDistFromWallToWallJump, m_Bounds.bottom + m_Bounds.height / 3 }, m_Bounds.width + 2 * m_MaxDistFromWallToWallJump, m_Bounds.height / 3, PhysicsBody::Type::Level, true);
+	AddOverlapRect(Vector2f{ m_Pos.x, m_Pos.y }, width, height,
+		std::unordered_map<Type, TypeInfo>{
+			{ Type::Level, TypeInfo{ true } },
+			{ Type::FallingBlock, TypeInfo{true} },
+			{ Type::LevelScreenGate, TypeInfo{false} },
+			{ Type::Spike, TypeInfo{true} },
+			{ Type::Badeline, TypeInfo{false} },
+			{ Type::DashCrystal, TypeInfo{false} }},
+		true);
+	AddOverlapRect(Vector2f{ m_Pos.x - m_MaxDistFromWallToWallJump, m_Pos.y + height / 3 }, width + 2 * m_MaxDistFromWallToWallJump, height / 3, std::unordered_map<Type, TypeInfo>{{ Type::Level, TypeInfo{ false } }, { Type::FallingBlock, TypeInfo{false} }}, true);
 
 	float groundJumpHeight = 3.5f;
 	float groundJumpTime = 0.35f;
@@ -145,9 +155,10 @@ Madeline::~Madeline()
 void Madeline::Draw(const LevelScreen* pLevelScreen) const
 {
 	float frameSize{ 32.f };
+	const Rectf& rect{ m_OverlapRects[0].rect };
 	Rectf dstRect{
-		m_Bounds.left + m_Bounds.width / 2 - frameSize / 2,
-		m_Bounds.bottom,
+		rect.left + rect.width / 2 - frameSize / 2,
+		rect.bottom,
 		frameSize, frameSize
 	};
 	m_MultiSpriteSheet.Draw(dstRect);
@@ -167,19 +178,43 @@ void Madeline::Update(float dt)
 
 }
 
-void Madeline::CollisionInfoResponse(int idx, const CollisionInfo& ci)
+void Madeline::CollisionInfoResponse(int overlapRectIdx, const CollisionInfo& ci, Type type, const PhysicsBody* pCollisionBody)
 {
-	switch (CollisionRectNames(idx))
+	if (overlapRectIdx == 0)
 	{
-	case CollisionRectNames::Body:
-	{
-		bool prevOnGround{ m_OnGround };
-		m_OnGround = m_Vel.y <= 0.f && ci.collDir.down;
-		if (!prevOnGround && m_OnGround)
-			AssetManager::PlaySoundEffect("GroundHit");
-		break;
+		switch (type)
+		{
+		case PhysicsBody::Type::Spike:
+			AssetManager::PlaySoundEffect("Death");
+			m_Alive = false;
+			break;
+		case PhysicsBody::Type::Level: case PhysicsBody::Type::FallingBlock:
+		{
+			bool prevOnGround{ m_OnGround };
+			m_OnGround = m_Vel.y <= 0.f && ci.collDir.down;
+			if (!prevOnGround && m_OnGround)
+				AssetManager::PlaySoundEffect("GroundHit");
+			break;
+		}
+		case PhysicsBody::Type::DashCrystal:
+			m_CanDash = true;
+			break;
+		case PhysicsBody::Type::Badeline:
+			//m_State = State::Jumping;
+			//m_Jumping = true;
+			//float xDist{ -200.f };
+			//float yDist{ 100.f };
+			//float time{ 1.f };
+			//AccAndVel accVelX{ utils::AccAndVelToTravelDistInTime(xDist, time) };
+			//AccAndVel accVelY{ utils::AccAndVelToTravelDistInTime(yDist, time) };
+			//float angle{ std::atan2f(yDist, xDist) };
+			//float acc{ 100.f };
+			//SetMovement(Vector2f{ xDist, yDist }, Vector2f{ 0.f, 0.f }, Vector2f{ acc * cosf(angle), acc * sinf(angle) });
+			break;
+		}
 	}
-	case CollisionRectNames::WallDetection:
+	else if (overlapRectIdx == 1)
+	{
 		m_AgainstWall = ci.collDir.x;
 		m_AgainstRightWall = ci.collDir.right;
 		m_AgainstLeftWall = ci.collDir.left;
@@ -189,8 +224,17 @@ void Madeline::CollisionInfoResponse(int idx, const CollisionInfo& ci)
 			m_DistFromWall = m_MaxDistFromWallToWallJump - entryDist;
 		}
 		else m_DistFromWall = m_MaxDistFromWallToWallJump + 1;
-		break;
 	}
+}
+
+bool Madeline::IsAlive() const
+{
+	return m_Alive;
+}
+
+void Madeline::SetAlive(bool alive)
+{
+	m_Alive = alive;
 }
 
 void Madeline::SetState()
@@ -276,7 +320,7 @@ void Madeline::SetStateParameters(float dt)
 
 void Madeline::InitialiseState()
 {
-	std::cout << "State: " << m_StateInfoArr[int(m_State)].name << std::endl;
+	//std::cout << "State: " << m_StateInfoArr[int(m_State)].name << std::endl;
 
 	//Remove previous state SoundEffect
 	if (m_StateInfoArr[int(m_State)].soundEffect != "")
@@ -340,9 +384,4 @@ void Madeline::ApplyMovementParameters(float& targetVel, float& vel, float& acc,
 		vel *= wallDir;
 	else if (movementParameters.multiplyInitVelByInputDir)
 		vel *= inputDir;
-}
-
-void Madeline::ResetDash()
-{
-	m_CanDash = true;
 }

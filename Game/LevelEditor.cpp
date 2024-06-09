@@ -168,7 +168,8 @@ void LevelEditor::ClickedLMB()
         case EditLevelScreenMode::Default:
         {
             TileIdx tileIdx{ GetMouseTileIdx() };
-            std::cout << tileIdx.r << " " << tileIdx.c << std::endl;
+            std::cout << tileIdx.r << " " << tileIdx.c;
+            std::cout << "||" << tileIdx.r * 8 << " " << tileIdx.c * 8 << std::endl;
             break;
         }
         case EditLevelScreenMode::AddCrystal:
@@ -411,6 +412,7 @@ void LevelEditor::SetSelectedMode(Mode mode, bool enter)
 void LevelEditor::EnterSelectedMode()
 {
     m_Mode = m_SelectedMode;
+    std::cout << int(m_Mode) << std::endl;
     std::cout << "Mode changed to: " << m_ModeNames[int(m_Mode)] << std::endl;
     switch (m_Mode)
     {

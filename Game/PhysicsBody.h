@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include <unordered_map>
 #include "LevelScreen.h"
 
 class PhysicsBody
@@ -7,10 +8,15 @@ class PhysicsBody
 public:
 	enum class Type
 	{
-		Madeline, FallingBlock, Level, DashCrystal
+		Madeline, FallingBlock, Level, DashCrystal, Spike, LevelScreenGate, Badeline
 	};
 
-	explicit PhysicsBody(Type type, const Rectf& bounds, bool canDie = false, bool alwaysReceiveCollInfo = false);
+	struct TypeInfo
+	{
+		bool block;
+	};
+
+	explicit PhysicsBody(Type type, const Vector2f& pos);
 	virtual ~PhysicsBody() = default;
 	PhysicsBody(const PhysicsBody& other) = delete;
 	PhysicsBody& operator=(const PhysicsBody& other) = delete;
@@ -19,37 +25,33 @@ public:
 
 	virtual void Draw(const LevelScreen* pLevelScreen = nullptr) const = 0;
 	virtual void Update(float dt) = 0;
-	virtual void CollisionInfoResponse(int idx, const CollisionInfo& ci) = 0;
+	virtual void CollisionInfoResponse(int overlapRectIdx, const CollisionInfo& ci, Type type, const PhysicsBody* pCollisionBody = nullptr) = 0;
+	virtual bool CanTransferThroughGate(const LevelScreenGate& gate) const;
 	virtual std::string String() const;
-	virtual void Activate(bool activate);
 
+	void Activate(bool activate);
 	void UpdatePhysics(float dt);
-	void AddOverlapRect(const Vector2f& offset, float width, float height, Type allowedPhysicsBodyCollision, bool alwaysReceiveCollInfo);
+	void AddOverlapRect(const Vector2f& leftBottom, float width, float height, const std::unordered_map<Type, TypeInfo>& allowedCollisionTypes, bool alwaysReceiveCollInfo);
 	void SetPosition(const Vector2f& pos);
 	void SetMovement(const Vector2f& targetVel, const Vector2f& vel, const Vector2f& acc);
-	Rectf GetBounds() const;
-	bool IsDead() const;
-	void SetIsDead(bool isDead);
+	Rectf GetBounds(int overlapRectIdx = 0) const;
 	Type GetType() const;
+	bool IsActive() const;
 
 	struct OverlapRectInfo
 	{
 		Rectf rect;
-		Type AllowedPhysicsBodyCollisionType;
+		std::unordered_map<Type, TypeInfo> allowedCollisionTypes;
 		bool alwaysReceiveCollInfo;
 	};
 protected:
 	Type m_Type;
-	std::vector<Type> m_CollisionTypes;
-	Rectf m_Bounds;
+	Vector2f m_Pos;
 	Vector2f m_Vel;
 	Vector2f m_TargetVel;
 	Vector2f m_Acc;
 	std::vector<OverlapRectInfo> m_OverlapRects;
-	bool m_CanDie;
-	bool m_IsDead;
 	bool m_Active;
-	bool m_AlwaysReceiveCollInfo;
 private:
 	//Functions
 	void UpdateAxis(float dt, float& targetVel, float& vel, float& acc);

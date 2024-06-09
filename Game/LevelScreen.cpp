@@ -35,7 +35,10 @@ LevelScreen::~LevelScreen()
 		AssetManager::RemoveTexture(pTexture);
 
 	for (PhysicsBody* pPhysicsBody : m_pPhysicsBodies)
-		delete pPhysicsBody;
+	{
+		if (pPhysicsBody->GetType() != PhysicsBody::Type::Badeline)
+			delete pPhysicsBody;
+	}
 
 	AssetManager::RemoveTexture(m_pCrystal);
 }
@@ -62,7 +65,9 @@ LevelScreen& LevelScreen::operator=(LevelScreen&& other) noexcept
 		m_Data = std::move(other.m_Data);
 		for (PhysicsBody* pPhysicsBody : m_pPhysicsBodies)
 		{
-			delete pPhysicsBody;
+			if (pPhysicsBody->GetType() != PhysicsBody::Type::Badeline)
+				delete pPhysicsBody;
+
 			pPhysicsBody = nullptr;
 		}
 		m_pPhysicsBodies = std::move(other.m_pPhysicsBodies);
@@ -99,10 +104,9 @@ void LevelScreen::Draw() const
 	{
 		pPhysicsBody->Draw(this);
 		//Draw overlaprects
-		utils::SetColor(Color4f{ 1.f, 0.f, 0.f, 1.f });
-		utils::DrawRect(pPhysicsBody->m_Bounds, 2.f);
-		for (PhysicsBody::OverlapRectInfo& overlapRect : pPhysicsBody->m_OverlapRects)
-			utils::DrawRect(overlapRect.rect, 2.f);
+		//utils::SetColor(Color4f{ 1.f, 0.f, 0.f, 1.f });
+		//for (PhysicsBody::OverlapRectInfo& overlapRect : pPhysicsBody->m_OverlapRects)
+		//	utils::DrawRect(overlapRect.rect, 2.f);
 	}
 }
 
@@ -154,81 +158,121 @@ bool LevelScreen::Update(float dt)
 	m_pPhysicsBodiesOverlapinggates.clear();
 	for (std::vector<PhysicsBody*>::iterator it{m_pPhysicsBodies.begin()}; it != m_pPhysicsBodies.end();)
 	{
+		bool removePhysicsBody{ false };
 		PhysicsBody* pPhysicsBody{ *it };
 		pPhysicsBody->Update(dt); //Derived update
 		pPhysicsBody->UpdatePhysics(dt); //Base update
-		CollisionInfo bodyCI{ MovePhysicsRect(pPhysicsBody, pPhysicsBody->m_Vel, dt) };
-		
-		if (pPhysicsBody->m_AlwaysReceiveCollInfo || bodyCI.collided)
-			pPhysicsBody->CollisionInfoResponse(0, bodyCI);
 
-		switch (pPhysicsBody->m_Type)
+		//Loop over all the overlap rects of the current physics body and check all possible collisions
+		for (int overlapRectIdx{}; overlapRectIdx < pPhysicsBody->m_OverlapRects.size(); ++overlapRectIdx)
 		{
-		case PhysicsBody::Type::Madeline:
-			//Check if player overlaps a FallingBLock or dash crystal overlap rect
-			for (PhysicsBody* pPhysicsBodyOther : m_pPhysicsBodies)
+			PhysicsBody::OverlapRectInfo& overlapInfo{ pPhysicsBody->m_OverlapRects[overlapRectIdx] };
+
+			//Level Collision
+			if (overlapInfo.allowedCollisionTypes.find(PhysicsBody::Type::Level) != overlapInfo.allowedCollisionTypes.end())
 			{
-				switch (pPhysicsBodyOther->m_Type)
+				if (overlapInfo.allowedCollisionTypes[PhysicsBody::Type::Level].block) //solid collision with level
 				{
-				case PhysicsBody::Type::FallingBlock:
-					//bodyCI = MovePhysicsRect2(pPhysicsBody->m_Bounds, pPhysicsBodyOther->m_Bounds, pPhysicsBody->m_Vel, dt);
-					if (utils::IsOverlapping(pPhysicsBody->m_Bounds, pPhysicsBodyOther->m_OverlapRects[0].rect))
-						pPhysicsBodyOther->Activate(true);
-					break;
-				case PhysicsBody::Type::DashCrystal:
-					if (pPhysicsBodyOther->m_Active && utils::IsOverlapping(pPhysicsBody->m_Bounds, pPhysicsBodyOther->m_Bounds))
+					CollisionInfo ci{ MovePhysicsRect(pPhysicsBody, pPhysicsBody->m_Vel, dt) };
+					if (overlapInfo.alwaysReceiveCollInfo || ci.collided)
+						pPhysicsBody->CollisionInfoResponse(overlapRectIdx, ci, PhysicsBody::Type::Level, nullptr);
+				}
+				else //checking overlap
+				{
+					CollisionInfo ci{ DetectRectCollision(overlapInfo.rect) };
+					if (overlapInfo.alwaysReceiveCollInfo || ci.collided)
+						pPhysicsBody->CollisionInfoResponse(overlapRectIdx, ci, PhysicsBody::Type::Level, nullptr);
+				}
+			}
+			//Spike collision
+			if (overlapInfo.allowedCollisionTypes.find(PhysicsBody::Type::Spike) != overlapInfo.allowedCollisionTypes.end())
+			{
+				for (Vector2f& pos : m_CrystalPositions)
+				{
+					Circlef crystal{ Point2f{pos.x, pos.y}, m_pCrystal->GetHeight() / 2 * 0.75f };
+					if (utils::IsOverlapping(overlapInfo.rect, crystal))
 					{
-						DashCrystal* pDashCrystal{ static_cast<DashCrystal*>(pPhysicsBodyOther) };
-						pDashCrystal->CollisionInfoResponse(0, CollisionInfo{});
-						Madeline* pMadeline{ static_cast<Madeline*>(pPhysicsBody) };
-						pMadeline->ResetDash();
+						pPhysicsBody->CollisionInfoResponse(overlapRectIdx, CollisionInfo{}, PhysicsBody::Type::Spike, nullptr);
+						levelActionRequired = true;
+						removePhysicsBody = true;
 					}
-					break;
 				}
 			}
-
-			//Check if player overlaps any crystals
-			for (Vector2f& pos : m_CrystalPositions)
+			//Gate collision
+			if (overlapInfo.allowedCollisionTypes.find(PhysicsBody::Type::LevelScreenGate) != overlapInfo.allowedCollisionTypes.end())
 			{
-				Circlef crystal{ Point2f{pos.x, pos.y}, m_pCrystal->GetHeight() / 2 * 0.75f };
-				if (utils::IsOverlapping(pPhysicsBody->m_Bounds, crystal))
+				int gateIdx{ PhysicsBodyOverlapsGate(pPhysicsBody) };
+				if (gateIdx >= 0 && gateIdx < m_Gates.size() && pPhysicsBody->CanTransferThroughGate(m_Gates[gateIdx]))
 				{
-					pPhysicsBody->m_IsDead = true;
+					m_pPhysicsBodiesOverlapinggates.insert({ pPhysicsBody, m_Gates[gateIdx] });
 					levelActionRequired = true;
+					removePhysicsBody = true;
+					pPhysicsBody->CollisionInfoResponse(overlapRectIdx, CollisionInfo{}, PhysicsBody::Type::LevelScreenGate, nullptr);
 				}
 			}
 
-			break;
-		}
-
-		//check for collision between overlapRects and with level
-		for (int i{}; i < pPhysicsBody->m_OverlapRects.size(); i++)
-		{
-			PhysicsBody::OverlapRectInfo& overlapRect{ pPhysicsBody->m_OverlapRects[i] };
-			if (overlapRect.AllowedPhysicsBodyCollisionType == PhysicsBody::Type::Level)
+			//Collision with other PhysicsBodies
+			for (PhysicsBody* pOtherPhysicsBody : m_pPhysicsBodies)
 			{
-				CollisionInfo overlapCI{ DetectRectCollision(overlapRect.rect) };
-				if (overlapRect.alwaysReceiveCollInfo || overlapCI.collided)
-					pPhysicsBody->CollisionInfoResponse(i + 1, overlapCI); // + 1 because 0 is ALWAYS the collision body
-			}
-		}
+				if (pPhysicsBody == pOtherPhysicsBody || overlapInfo.allowedCollisionTypes.find(pOtherPhysicsBody->GetType()) == overlapInfo.allowedCollisionTypes.end())
+					continue;
 
-		//Check if pPhysicsBody overlaps with any of the gates in this level
-		int gateIdx{ PhysicsBodyOverlapsGate(pPhysicsBody) };
-		if (gateIdx >= 0 && gateIdx < m_Gates.size())
-		{
-			m_pPhysicsBodiesOverlapinggates.insert({ pPhysicsBody, m_Gates[gateIdx] });
-			levelActionRequired = true;
+				for (int otherOverlapRectIdx{}; otherOverlapRectIdx < pOtherPhysicsBody->m_OverlapRects.size(); ++otherOverlapRectIdx)
+				{
+					PhysicsBody::OverlapRectInfo& otherOverlapInfo{ pOtherPhysicsBody->m_OverlapRects[otherOverlapRectIdx] };
+					if (otherOverlapInfo.allowedCollisionTypes.find(pPhysicsBody->GetType()) != otherOverlapInfo.allowedCollisionTypes.end())
+					{
+						switch (pOtherPhysicsBody->GetType())
+						{
+						case PhysicsBody::Type::DashCrystal:
+						{
+							if (utils::IsOverlapping(overlapInfo.rect, otherOverlapInfo.rect))
+							{
+								DashCrystal* pDashCrystal{ static_cast<DashCrystal*>(pOtherPhysicsBody) };
+								pDashCrystal->CollisionInfoResponse(overlapRectIdx, CollisionInfo{}, pPhysicsBody->GetType(), pPhysicsBody);
+								Madeline* pMadeline{ static_cast<Madeline*>(pPhysicsBody) };
+								pPhysicsBody->CollisionInfoResponse(overlapRectIdx, CollisionInfo{}, pOtherPhysicsBody->GetType(), pOtherPhysicsBody);
+							}
+							break;
+						}
+						case PhysicsBody::Type::FallingBlock:
+						{
+							//bodyCI = MovePhysicsRect2(pPhysicsBody->m_Bounds, pOtherPhysicsBody->m_Bounds, pPhysicsBody->m_Vel, dt);
+							if (!overlapInfo.allowedCollisionTypes[PhysicsBody::Type::FallingBlock].block &&
+								utils::IsOverlapping(overlapInfo.rect, otherOverlapInfo.rect))
+							{
+								pOtherPhysicsBody->CollisionInfoResponse(overlapRectIdx, CollisionInfo{}, pPhysicsBody->GetType(), pPhysicsBody);
+								pOtherPhysicsBody->CollisionInfoResponse(overlapRectIdx, CollisionInfo{}, pOtherPhysicsBody->GetType(), pOtherPhysicsBody);
+							}
+							//TO-DO: implement solid collision with fallingblocks
+							break;
+						}
+						case PhysicsBody::Type::Badeline:
+						{
+							//bodyCI = MovePhysicsRect2(pPhysicsBody->m_Bounds, pOtherPhysicsBody->m_Bounds, pPhysicsBody->m_Vel, dt);
+							if (utils::IsOverlapping(overlapInfo.rect, otherOverlapInfo.rect))
+							{
+								pOtherPhysicsBody->CollisionInfoResponse(overlapRectIdx, CollisionInfo{}, pPhysicsBody->GetType(), pPhysicsBody);
+								pPhysicsBody->CollisionInfoResponse(overlapRectIdx, CollisionInfo{}, pOtherPhysicsBody->GetType(), pOtherPhysicsBody);
+							}
+							break;
+						}
+						}
+					}
+				}
+			}
 		}
 			
-		if (levelActionRequired)
+		if (removePhysicsBody)
 		{
 			it = m_pPhysicsBodies.erase(it);
 			if (!m_pLevel)
 				delete pPhysicsBody;
 		}
 		else
+		{
 			++it;
+		}
 	}
 	return levelActionRequired;
 }
@@ -254,10 +298,11 @@ void LevelScreen::AddPhysicsBodyThroughGate(PhysicsBody* pPhysicsBody, const Lev
 	Rectf gateRect{ gate.GetRect(m_TileSize, m_Rows, m_Cols) };
 	Vector2f spawnPos{ gateRect.left, gateRect.bottom };
 	bool IsGateVertical{ int(gate.GetSide()) % 2 == 0 };
+	const Rectf& rect{ pPhysicsBody->m_OverlapRects[0].rect };
 	if (IsGateVertical)
-		spawnPos.x += (gate.GetSide() == LevelScreenGate::Side::Right) ? -(pPhysicsBody->m_Bounds.width + m_TileSize) : m_TileSize;
+		spawnPos.x += (gate.GetSide() == LevelScreenGate::Side::Right) ? -(rect.width + m_TileSize) : m_TileSize;
 	else
-		spawnPos.y += (gate.GetSide() == LevelScreenGate::Side::Top) ? -(pPhysicsBody->m_Bounds.height + m_TileSize) : m_TileSize;
+		spawnPos.y += (gate.GetSide() == LevelScreenGate::Side::Top) ? -(rect.height + m_TileSize) : m_TileSize;
 
 	pPhysicsBody->SetPosition(spawnPos);
 }

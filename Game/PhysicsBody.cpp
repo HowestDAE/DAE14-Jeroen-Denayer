@@ -1,18 +1,20 @@
 #include "pch.h"
 #include "PhysicsBody.h"
 
-PhysicsBody::PhysicsBody(Type type, const Rectf& bounds, bool canDie, bool alwaysReceiveCollInfo)
+PhysicsBody::PhysicsBody(Type type, const Vector2f& pos)
 	: m_Type{ type }
-	, m_Bounds{ bounds }
+	, m_Pos{ pos }
 	, m_Vel{ Vector2f{} }
 	, m_TargetVel{ Vector2f{} }
 	, m_Acc{ Vector2f{} }
 	, m_OverlapRects{ std::vector<OverlapRectInfo>{} }
-	, m_CanDie{ canDie }
-	, m_IsDead{ false }
 	, m_Active{ true }
-	, m_AlwaysReceiveCollInfo{ alwaysReceiveCollInfo }
 {
+}
+
+bool PhysicsBody::CanTransferThroughGate(const LevelScreenGate& gate) const
+{
+	return true;
 }
 
 std::string PhysicsBody::String() const
@@ -45,22 +47,22 @@ void PhysicsBody::UpdateAxis(float dt, float& targetVel, float& vel, float& acc)
 		vel = targetVel;
 }
 
-void PhysicsBody::AddOverlapRect(const Vector2f& offset, float width, float height, Type allowedPhysicsBodyCollision, bool alwaysReceiveCollInfo)
+void PhysicsBody::AddOverlapRect(const Vector2f& leftBottom, float width, float height, const std::unordered_map<Type, TypeInfo>& allowedCollisionTypes, bool alwaysReceiveCollInfo)
 {
-	m_OverlapRects.push_back(OverlapRectInfo{ Rectf{ offset.x, offset.y, width, height }, allowedPhysicsBodyCollision, alwaysReceiveCollInfo });
+	m_OverlapRects.push_back(OverlapRectInfo{ Rectf{ leftBottom.x, leftBottom.y, width, height }, allowedCollisionTypes, alwaysReceiveCollInfo });
 }
 
 void PhysicsBody::SetPosition(const Vector2f& pos)
 {
-	Point2f origPos{ m_Bounds.left, m_Bounds.bottom };
-	m_Bounds.left = pos.x;
-	m_Bounds.bottom = pos.y;
+	Point2f origPos{ m_Pos.x, m_Pos.y };
+	m_Pos.x = pos.x;
+	m_Pos.y = pos.y;
 	for (OverlapRectInfo& overlapRect : m_OverlapRects)
 	{
 		Rectf& rect{ overlapRect.rect };
 		Point2f rectOffset{ rect.left - origPos.x, rect.bottom - origPos.y };
-		rect.left = m_Bounds.left + rectOffset.x;
-		rect.bottom = m_Bounds.bottom + rectOffset.y;
+		rect.left = m_Pos.x + rectOffset.x;
+		rect.bottom = m_Pos.y + rectOffset.y;
 	}
 }
 
@@ -71,19 +73,12 @@ void PhysicsBody::SetMovement(const Vector2f& targetVel, const Vector2f& vel, co
 	m_Acc = acc;
 }
 
-Rectf PhysicsBody::GetBounds() const
+Rectf PhysicsBody::GetBounds(int overlapRectIdx) const
 {
-	return m_Bounds;
-}
-
-bool PhysicsBody::IsDead() const
-{
-	return m_IsDead;
-}
-
-void PhysicsBody::SetIsDead(bool isDead)
-{
-	m_IsDead = isDead;
+	if (overlapRectIdx > -1 && overlapRectIdx < m_OverlapRects.size())
+		return m_OverlapRects[overlapRectIdx].rect;
+	else
+		return Rectf{};
 }
 
 void PhysicsBody::Activate(bool activate)
@@ -94,4 +89,9 @@ void PhysicsBody::Activate(bool activate)
 PhysicsBody::Type PhysicsBody::GetType() const
 {
 	return m_Type;
+}
+
+bool PhysicsBody::IsActive() const
+{
+	return m_Active;
 }
